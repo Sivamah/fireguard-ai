@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Flame, AlertTriangle, CheckCircle, Clock, Plus, Eye, ChevronUp, ChevronDown, X, RefreshCw } from 'lucide-react';
+import PageHeader from '../components/ui/PageHeader';
 import { extinguishers as initialExtinguishers } from '../data/mockData';
 
 const StatusBadge = ({ status }) => {
@@ -159,30 +160,33 @@ export default function Extinguishers() {
         </div>
       )}
 
+      {/* Header */}
+      <PageHeader
+        title="Extinguisher Inventory"
+        description={`${filtered.length} records`}
+        action={
+          <button className="btn btn-primary btn-sm" onClick={() => { setAddForm(EMPTY_ADD); setIsAddOpen(true); }}>
+            <Plus size={13} /> Add Unit
+          </button>
+        }
+      />
+
       {/* Table Card */}
-      <div className="card">
-        <div className="card-header" style={{ paddingBottom: 16 }}>
-          <div>
-            <div className="card-title">Extinguisher Inventory</div>
-            <div className="card-subtitle">{filtered.length} records</div>
+      <div className="card" style={{ overflow: 'visible', background: 'transparent', boxShadow: 'none', border: 'none', padding: 0 }}>
+        
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+          <div className="input-wrap" style={{ flex: '1 1 220px' }}>
+            <Search size={14} className="input-icon" />
+            <input className="input" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <div className="input-wrap" style={{ width: 220 }}>
-              <Search size={14} className="input-icon" />
-              <input className="input" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} />
-            </div>
-            <select className="select" value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{ width: 140 }}>
-              <option value="All">All Types</option>
-              {types.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <button className="btn btn-primary btn-sm" onClick={() => { setAddForm(EMPTY_ADD); setIsAddOpen(true); }}>
-              <Plus size={13} /> Add Unit
-            </button>
-          </div>
+          <select className="select" value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{ width: 140 }}>
+            <option value="All">All Types</option>
+            {types.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
         </div>
 
         {/* Status Tabs */}
-        <div style={{ padding: '0 24px 16px' }}>
+        <div style={{ paddingBottom: 16, overflowX: 'auto' }}>
           <div className="tabs">
             {Object.entries(counts).map(([key, count]) => (
               <button
@@ -196,7 +200,7 @@ export default function Extinguishers() {
           </div>
         </div>
 
-        <div className="table-container" style={{ border: 'none', borderRadius: 0 }}>
+        <div className="table-container hidden-on-mobile">
           <table className="data-table">
             <thead>
               <tr>
@@ -280,6 +284,57 @@ export default function Extinguishers() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="show-on-mobile">
+          {filtered.map(ext => {
+            const isExpired = ext.status === 'Expired';
+            const isExpiring = ext.status === 'Expiring Soon';
+            return (
+              <div key={ext.id} className="mobile-card" onClick={() => setSelectedExt(ext)}>
+                <div className="mobile-card-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: 'var(--radius-md)',
+                      background: isExpired ? '#FEF2F2' : isExpiring ? '#FFFBEB' : 'var(--color-primary-ultra-light)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      <Flame size={16} color={isExpired ? '#DC2626' : isExpiring ? '#B45309' : 'var(--color-primary)'} />
+                    </div>
+                    <div>
+                      <div className="mobile-card-title">{ext.id}</div>
+                      <div className="mobile-card-subtitle">{ext.building} - FL {ext.floor}</div>
+                    </div>
+                  </div>
+                  <StatusBadge status={ext.status} />
+                </div>
+                <div className="mobile-card-row">
+                  <span style={{ color: 'var(--text-muted)' }}>Type</span>
+                  <span className="badge badge-neutral" style={{ fontSize: 11 }}>{ext.type}</span>
+                </div>
+                <div className="mobile-card-row">
+                  <span style={{ color: 'var(--text-muted)' }}>Expires</span>
+                  <span style={{ fontWeight: isExpired ? 700 : 400, color: isExpired ? '#DC2626' : isExpiring ? '#B45309' : 'var(--text-primary)' }}>
+                    {ext.expiryDate}
+                  </span>
+                </div>
+                <div className="mobile-card-actions">
+                  <button className="btn btn-secondary btn-sm" style={{ flex: 1, justifyContent: 'center' }} onClick={e => { e.stopPropagation(); setSelectedExt(ext); }}>View</button>
+                  {isExpired && (
+                    <button className="btn btn-danger btn-sm" style={{ flex: 1, justifyContent: 'center' }} onClick={e => { e.stopPropagation(); handleReplace(ext); }}>
+                      <RefreshCw size={11} style={{ marginRight: 4 }}/> Replace
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {filtered.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: 13 }}>
+              No extinguishers match your current filters.
+            </div>
+          )}
         </div>
       </div>
 

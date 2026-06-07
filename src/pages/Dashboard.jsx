@@ -166,7 +166,7 @@ const CampusMap = ({ navigate }) => (
     borderRadius: 'var(--radius-lg)', padding: 24, minHeight: 240,
     border: '1px solid #C7E8D5'
   }}>
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
+    <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 12 }}>
       {CAMPUS.map((b, i) => {
         const cfg = RISK_COLORS[b.risk];
         const heights = [120, 96, 80, 72, 88];
@@ -176,7 +176,7 @@ const CampusMap = ({ navigate }) => (
             key={i}
             className="campus-building"
             onClick={() => navigate('/buildings')}
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: 'pointer', flexShrink: 0, minWidth: 90 }}
           >
             {/* Tower graphic */}
             <div style={{
@@ -370,7 +370,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── CAMPUS MAP + RISK OVERVIEW ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 20 }}>
+      <div className="dashboard-grid-map">
         {/* Map */}
         <div className="card animate-up" style={{ animationDelay: '0.15s' }}>
           <div className="card-header">
@@ -402,7 +402,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── COMPLIANCE CHART + EXTINGUISHER STATUS ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', gap: 20 }}>
+      <div className="dashboard-grid-chart">
         {/* Compliance Trend */}
         <div className="card animate-up" style={{ animationDelay: '0.18s' }}>
           <div className="card-header">
@@ -454,7 +454,7 @@ export default function Dashboard() {
           <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>Quick Actions</div>
           <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 3 }}>Common tasks — click to get started</div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
           {ACTIONS.map((action, i) => {
             const Icon = action.icon;
             return (
@@ -465,7 +465,7 @@ export default function Dashboard() {
                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
                   padding: '22px 14px', borderRadius: 'var(--radius-lg)', border: '1.5px solid var(--border)',
                   background: 'var(--bg-card)', cursor: 'pointer', transition: 'all 0.2s var(--ease-spring)',
-                  textAlign: 'center'
+                  textAlign: 'center', flex: '1 1 150px', minWidth: 150
                 }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = action.color; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; e.currentTarget.style.transform = 'translateY(-3px)'; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; }}
@@ -484,7 +484,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── ALERTS + UPCOMING AUDITS ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+      <div className="dashboard-grid-half">
         {/* Recent Alerts */}
         <div className="card animate-up" style={{ animationDelay: '0.25s' }}>
           <div className="card-header">
@@ -596,7 +596,7 @@ export default function Dashboard() {
         <div style={{
           background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)',
           padding: '28px 32px',
-          display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24
+          display: 'flex', flexWrap: 'wrap', gap: 24
         }}>
           {[
             { icon: '🤖', title: 'AI Powered',              sub: 'Intelligent risk assessment & predictions' },
@@ -604,7 +604,7 @@ export default function Dashboard() {
             { icon: '✅', title: 'Compliance Tracking',     sub: 'Automated audit trails & reporting' },
             { icon: '🏢', title: 'Multi-location',          sub: 'Manage unlimited buildings from one view' },
           ].map((item, i) => (
-            <div key={i} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+            <div key={i} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', flex: '1 1 200px' }}>
               <div style={{ fontSize: 26, flexShrink: 0 }}>{item.icon}</div>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{item.title}</div>

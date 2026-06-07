@@ -1134,3 +1134,147 @@ body {
   justify-content: center;
 }
 
+/* ============================================================
+   MOBILE UX ARCHITECTURE
+   ============================================================ */
+
+.bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 64px;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  z-index: 200;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.bottom-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s var(--ease);
+}
+
+.bottom-nav-item.active {
+  color: var(--color-primary);
+}
+
+.bottom-nav-item span {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.mobile-overlay {
+  position: fixed; inset: 0; z-index: 150;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(2px);
+  animation: fadeIn 0.2s;
+}
+
+.mobile-more-menu {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: var(--bg-card);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  z-index: 250;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.mobile-more-menu.open {
+  transform: translateY(0);
+}
+
+.mobile-more-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 14.5px;
+  cursor: pointer;
+}
+.mobile-more-item:hover, .mobile-more-item.active {
+  background: var(--bg-subtle);
+  color: var(--color-primary);
+}
+
+/* Mobile-First Layout Adjustments */
+@media (max-width: 900px) {
+  .bottom-nav { display: flex; }
+  .sidebar { display: none; }
+  .topbar { left: 0; padding: 0 16px; }
+  .page-content {
+    margin-left: 0;
+    padding: 16px;
+    padding-bottom: 80px; /* Space for bottom nav */
+  }
+}
+
+/* Visibility Utilities */
+.show-on-mobile { display: none !important; }
+
+@media (max-width: 768px) {
+  .hidden-on-mobile { display: none !important; }
+  .show-on-mobile { display: block !important; }
+}
+
+.mobile-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mobile-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.mobile-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.mobile-card-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.mobile-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+.mobile-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border-light);
+  padding-top: 12px;
+}
+
+.dashboard-grid-map { display: grid; grid-template-columns: 1fr 280px; gap: 20px; }
+.dashboard-grid-chart { display: grid; grid-template-columns: 1fr 260px; gap: 20px; }
+.dashboard-grid-half { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+@media (max-width: 900px) {
+  .dashboard-grid-map, .dashboard-grid-chart, .dashboard-grid-half { grid-template-columns: 1fr; }
+}
+
+
+
+

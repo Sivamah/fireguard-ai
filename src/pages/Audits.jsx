@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Search, ClipboardCheck, CheckCircle, AlertTriangle, Clock, Plus, Eye, Download, Calendar, User } from 'lucide-react';
+import PageHeader from '../components/ui/PageHeader';
 import { audits as initialAudits, upcomingAudits as initialUpcoming } from '../data/mockData';
 
 const StatusBadge = ({ status }) => {
@@ -111,6 +112,17 @@ export default function Audits() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* Header */}
+      <PageHeader
+        title="Audit Management"
+        description="Track and schedule fire safety compliance audits"
+        action={
+          <button className="btn btn-primary btn-sm" onClick={() => { setScheduleForm(EMPTY_SCHEDULE); setIsScheduleOpen(true); }}>
+            <Plus size={13} /> Schedule Audit
+          </button>
+        }
+      />
+
       {/* Stats */}
       <div className="grid grid-4" style={{ gap: 16 }}>
         {[
@@ -133,8 +145,8 @@ export default function Audits() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <div className="tabs">
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
+        <div className="tabs" style={{ flexGrow: 1 }}>
           <button className={`tab ${tab === 'history' ? 'active' : ''}`} onClick={() => setTab('history')}>
             Audit History
           </button>
@@ -142,14 +154,9 @@ export default function Audits() {
             Upcoming Audits ({upcomingAudits.length})
           </button>
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, alignItems: 'center' }}>
-          <div className="input-wrap" style={{ width: 220 }}>
-            <Search size={14} className="input-icon" />
-            <input className="input" placeholder="Search audits..." value={search} onChange={e => setSearch(e.target.value)} />
-          </div>
-          <button className="btn btn-primary btn-sm" onClick={() => { setScheduleForm(EMPTY_SCHEDULE); setIsScheduleOpen(true); }}>
-            <Plus size={13} /> Schedule Audit
-          </button>
+        <div className="input-wrap" style={{ flex: '1 1 220px' }}>
+          <Search size={14} className="input-icon" />
+          <input className="input" placeholder="Search audits..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
       </div>
 
@@ -160,7 +167,7 @@ export default function Audits() {
             <div className="card-title">Audit History</div>
             <div className="card-subtitle">{filtered.length} records</div>
           </div>
-          <div className="table-container" style={{ border: 'none', borderRadius: 0, marginTop: 16 }}>
+          <div className="table-container hidden-on-mobile" style={{ border: 'none', borderRadius: 0, marginTop: 16 }}>
             <table className="data-table">
               <thead>
                 <tr>
@@ -237,6 +244,49 @@ export default function Audits() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="show-on-mobile" style={{ marginTop: 16 }}>
+            {filtered.map(audit => (
+              <div key={audit.id} className="mobile-card" onClick={() => setSelected(audit)}>
+                <div className="mobile-card-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: 'var(--radius-md)',
+                      background: audit.status === 'Overdue' ? '#FEF2F2' : audit.status === 'Action Required' ? '#FFFBEB' : 'var(--color-primary-ultra-light)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      <ClipboardCheck size={16} color={audit.status === 'Overdue' ? '#DC2626' : audit.status === 'Action Required' ? '#B45309' : 'var(--color-primary)'} />
+                    </div>
+                    <div>
+                      <div className="mobile-card-title">{audit.building}</div>
+                      <div className="mobile-card-subtitle">{audit.date} · {audit.auditor}</div>
+                    </div>
+                  </div>
+                  <StatusBadge status={audit.status} />
+                </div>
+                <div className="mobile-card-row">
+                  <span style={{ color: 'var(--text-muted)' }}>Compliance</span>
+                  <span style={{
+                    fontWeight: 700,
+                    color: audit.complianceScore >= 80 ? 'var(--status-success)' :
+                      audit.complianceScore >= 60 ? '#B45309' : '#DC2626'
+                  }}>{audit.complianceScore}%</span>
+                </div>
+                <div className="mobile-card-actions">
+                  <button className="btn btn-secondary btn-sm" style={{ flex: 1, justifyContent: 'center' }} onClick={e => { e.stopPropagation(); setSelected(audit); }}>View</button>
+                  <button className="btn btn-ghost btn-sm" style={{ flex: 1, justifyContent: 'center' }} onClick={e => { e.stopPropagation(); downloadAuditReport(audit); }}>
+                    <Download size={13} style={{ marginRight: 4 }}/> Report
+                  </button>
+                </div>
+              </div>
+            ))}
+            {filtered.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: 13 }}>
+                No audits match your search.
+              </div>
+            )}
           </div>
         </div>
       )}

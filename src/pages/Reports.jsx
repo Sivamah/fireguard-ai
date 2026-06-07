@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FileBarChart2, Download, FileText, Shield, Flame, ClipboardCheck, AlertTriangle, ChevronRight, CheckCircle } from 'lucide-react';
+import PageHeader from '../components/ui/PageHeader';
 import { buildings } from '../data/mockData';
 
 const reports = [
@@ -99,6 +100,12 @@ export default function Reports() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* Header */}
+      <PageHeader
+        title="Compliance Reports"
+        description="Generate, view, and export detailed safety reports for your portfolio."
+      />
+
       {/* Filters */}
       <div className="card" style={{ padding: '20px 24px' }}>
         <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -131,7 +138,7 @@ export default function Reports() {
       </div>
 
       {/* Report Cards */}
-      <div className="grid grid-2" style={{ gap: 20 }}>
+      <div className="dashboard-grid-half" style={{ gap: 20 }}>
         {reports.map(report => {
           const Icon = report.icon;
           const isGenerating = generating === report.id;
@@ -202,7 +209,7 @@ export default function Reports() {
           <div className="card-title">Recent Reports</div>
           <button className="btn btn-ghost btn-sm" onClick={() => alert('Showing all generated reports. In production, this would navigate to a report archive page.')}>View All</button>
         </div>
-        <div className="table-container" style={{ border: 'none', borderRadius: 0, marginTop: 12 }}>
+        <div className="table-container hidden-on-mobile" style={{ border: 'none', borderRadius: 0, marginTop: 12 }}>
           <table className="data-table">
             <thead>
               <tr>
@@ -254,6 +261,42 @@ export default function Reports() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards for Recent Reports */}
+        <div className="show-on-mobile" style={{ marginTop: 16 }}>
+          {filteredRecentReports.map((report, i) => (
+            <div key={i} className="mobile-card">
+              <div className="mobile-card-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 'var(--radius-md)',
+                    background: report.type === 'PDF' ? '#FEF2F2' : '#F0FDF4',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    <FileText size={16} color={report.type === 'PDF' ? '#DC2626' : '#16A34A'} />
+                  </div>
+                  <div>
+                    <div className="mobile-card-title">{report.name}</div>
+                    <div className="mobile-card-subtitle">{report.date} · {report.size}</div>
+                  </div>
+                </div>
+              </div>
+              <div className="mobile-card-actions">
+                <button className="btn btn-primary btn-sm" style={{ flex: 1, justifyContent: 'center' }} onClick={() => handleGenerate({ id: `recent-${i}`, title: report.name }, report.type)}>
+                  <Download size={13} style={{ marginRight: 4 }}/> Download
+                </button>
+                <button className="btn btn-secondary btn-sm" style={{ flex: 1, justifyContent: 'center' }} onClick={() => {
+                  const shareUrl = `${window.location.origin}/reports/${report.name.replace(/\s+/g, '-').toLowerCase()}`;
+                  navigator.clipboard?.writeText(shareUrl).then(() => {
+                    alert('Share link copied to clipboard!');
+                  }).catch(() => {
+                    alert(`Share link: ${shareUrl}`);
+                  });
+                }}>Share</button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

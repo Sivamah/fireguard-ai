@@ -14,20 +14,6 @@ export default function Login() {
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [selectedDemo, setSelectedDemo] = useState(null);
-
-  const DEMO = [
-    { label: 'Admin', email: 'admin@fireguard.ai', password: 'admin123', color: '#1F6F50', desc: 'Full access' },
-    { label: 'Analyst', email: 'analyst@fireguard.ai', password: 'analyst123', color: '#3B82F6', desc: 'View & analyze' },
-    { label: 'Auditor', email: 'auditor@fireguard.ai', password: 'auditor123', color: '#F59E0B', desc: 'Audit management' },
-  ];
-
-  const fillDemo = (d) => {
-    setEmail(d.email);
-    setPassword(d.password);
-    setSelectedDemo(d.label);
-    setError('');
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -101,7 +87,7 @@ export default function Login() {
                 value={email}
                 onChange={e => { setEmail(e.target.value); setError(''); }}
                 placeholder="you@company.com"
-                autoComplete="email"
+                autoComplete="off"
                 required
               />
             </div>
@@ -126,7 +112,7 @@ export default function Login() {
                 value={password}
                 onChange={e => { setPassword(e.target.value); setError(''); }}
                 placeholder="Enter your password"
-                autoComplete="current-password"
+                autoComplete="new-password"
                 required
               />
               <button

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { alerts as mockAlerts, buildings, audits } from '../../data/mockData';
+import FloatingAIAssistant from '../ui/FloatingAIAssistant';
 
 const NAV_ITEMS = [
   { label: 'Main', type: 'section' },
@@ -113,6 +114,7 @@ export default function DashboardLayout() {
   const [notifOpen, setNotifOpen]   = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [localAlerts, setLocalAlerts] = useState(mockAlerts.map(a => ({ ...a })));
 
@@ -340,14 +342,77 @@ export default function DashboardLayout() {
         )}
 
         {/* Overlay */}
-        {(notifOpen || profileOpen) && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 150 }} onClick={() => { setNotifOpen(false); setProfileOpen(false); }} />
+        {(notifOpen || profileOpen || mobileMenuOpen) && (
+          <div className="mobile-overlay" onClick={() => { setNotifOpen(false); setProfileOpen(false); setMobileMenuOpen(false); }} />
         )}
 
         {/* Page Content */}
         <main className="page-content">
           <Outlet />
         </main>
+        
+        <FloatingAIAssistant />
+      </div>
+
+      {/* ── MOBILE BOTTOM NAV ── */}
+      <nav className="bottom-nav">
+        {[
+          { path: '/', label: 'Dash', icon: LayoutDashboard },
+          { path: '/buildings', label: 'Bldgs', icon: Building2 },
+          { path: '/audits', label: 'Audits', icon: ClipboardCheck },
+          { path: '/ai-assistant', label: 'AI', icon: MessageSquareText },
+        ].map(item => (
+          <div
+            key={item.path}
+            className={`bottom-nav-item ${location.pathname === item.path ? 'active' : ''}`}
+            onClick={() => { navigate(item.path); setMobileMenuOpen(false); }}
+          >
+            <item.icon size={20} />
+            <span>{item.label}</span>
+          </div>
+        ))}
+        <div
+          className={`bottom-nav-item ${mobileMenuOpen ? 'active' : ''}`}
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        >
+          <div style={{ display: 'flex', gap: 2 }}>
+            <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'currentColor' }} />
+            <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'currentColor' }} />
+            <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'currentColor' }} />
+          </div>
+          <span>More</span>
+        </div>
+      </nav>
+
+      {/* ── MOBILE MORE MENU DRAWER ── */}
+      <div className={`mobile-more-menu ${mobileMenuOpen ? 'open' : ''}`}>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-light)' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>More Options</div>
+        </div>
+        <div style={{ padding: 12 }}>
+          {[
+            { path: '/extinguishers', label: 'Extinguishers', icon: Flame },
+            { path: '/ai-risk', label: 'AI Risk Analysis', icon: BrainCircuit, reqRole: ['Admin', 'Analyst'] },
+            { path: '/reports', label: 'Reports', icon: FileBarChart2 },
+            { path: '/users', label: 'Users & Permissions', icon: Users, reqRole: ['Admin'] },
+            { path: '/settings', label: 'Settings', icon: Settings },
+            { path: '/about', label: 'About', icon: AlertTriangle },
+          ].map(item => {
+            if (item.reqRole && !item.reqRole.includes(user?.role)) return null;
+            const Icon = item.icon;
+            const isActive = location.pathname === item.path;
+            return (
+              <div
+                key={item.path}
+                className={`mobile-more-item ${isActive ? 'active' : ''}`}
+                onClick={() => { navigate(item.path); setMobileMenuOpen(false); }}
+              >
+                <Icon size={18} />
+                <span>{item.label}</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Building2, MapPin, Layers, Eye, ChevronUp, ChevronDown, Plus, Pencil, Trash2, AlertTriangle, AlertCircle, Flame } from 'lucide-react';
+import PageHeader from '../components/ui/PageHeader';
 import { buildings as initialBuildings } from '../data/mockData';
 
 const RiskBadge = ({ level }) => {
@@ -132,42 +133,46 @@ export default function Buildings() {
         })}
       </div>
 
-      {/* Table */}
-      <div className="card" style={{ overflow: 'visible' }}>
-        <div className="card-header" style={{ paddingBottom: 16, borderBottom: '1px solid var(--border-light)' }}>
-          <div>
-            <div className="card-title">Building Portfolio</div>
-            <div className="card-subtitle">{filtered.length} buildings shown</div>
-          </div>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <div className="input-wrap" style={{ width: 240 }}>
-              <Search size={14} className="input-icon" />
-              <input
-                className="input"
-                placeholder="Search buildings..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
-            </div>
-            <select
-              className="select"
-              value={riskFilter}
-              onChange={e => setRiskFilter(e.target.value)}
-              style={{ width: 140 }}
-            >
-              <option value="All">All Risk Levels</option>
-              <option value="Low">Low</option>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
-              <option value="Critical">Critical</option>
-            </select>
-            <button className="btn btn-primary btn-sm" onClick={() => { setForm(EMPTY_FORM); setIsAddModalOpen(true); }}>
-              <Plus size={13} /> Add Building
-            </button>
-          </div>
-        </div>
+      {/* Header */}
+      <PageHeader 
+        title="Building Portfolio" 
+        description={`${filtered.length} buildings shown`}
+        action={
+          <button className="btn btn-primary btn-sm" onClick={() => { setForm(EMPTY_FORM); setIsAddModalOpen(true); }}>
+            <Plus size={13} /> Add Building
+          </button>
+        }
+      />
 
-        <div className="table-container" style={{ border: 'none', borderRadius: 0 }}>
+      {/* Filters */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+        <div className="input-wrap" style={{ flex: '1 1 240px' }}>
+          <Search size={14} className="input-icon" />
+          <input
+            className="input"
+            placeholder="Search buildings..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+        <select
+          className="select"
+          value={riskFilter}
+          onChange={e => setRiskFilter(e.target.value)}
+          style={{ width: 140 }}
+        >
+          <option value="All">All Risk Levels</option>
+          <option value="Low">Low</option>
+          <option value="Medium">Medium</option>
+          <option value="High">High</option>
+          <option value="Critical">Critical</option>
+        </select>
+      </div>
+
+      <div className="card" style={{ overflow: 'visible', background: 'transparent', boxShadow: 'none', border: 'none', padding: 0 }}>
+        
+        {/* Desktop Table */}
+        <div className="table-container hidden-on-mobile">
           <table className="data-table">
             <thead>
               <tr>
@@ -257,6 +262,47 @@ export default function Buildings() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="show-on-mobile">
+          {filtered.map(bldg => (
+            <div key={bldg.id} className="mobile-card" onClick={() => setSelectedBuilding(bldg)}>
+              <div className="mobile-card-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 'var(--radius-md)',
+                    background: bldg.riskLevel === 'Critical' ? '#FEF2F2' : bldg.riskLevel === 'High' ? '#FFF7ED' : 'var(--color-primary-ultra-light)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                  }}>
+                    <Building2 size={16} color={bldg.riskLevel === 'Critical' ? '#DC2626' : bldg.riskLevel === 'High' ? '#EA580C' : 'var(--color-primary)'} />
+                  </div>
+                  <div>
+                    <div className="mobile-card-title">{bldg.name}</div>
+                    <div className="mobile-card-subtitle">{bldg.id}</div>
+                  </div>
+                </div>
+                <RiskBadge level={bldg.riskLevel} />
+              </div>
+              <div className="mobile-card-row">
+                <span style={{ color: 'var(--text-muted)' }}><MapPin size={12} style={{ display: 'inline', marginRight: 4 }}/>{bldg.location}</span>
+                <span>{bldg.floors} Floors</span>
+              </div>
+              <div className="mobile-card-row">
+                <span style={{ color: 'var(--text-muted)' }}>Compliance</span>
+                <ComplianceMeter score={bldg.complianceScore} />
+              </div>
+              <div className="mobile-card-actions">
+                <button className="btn btn-secondary btn-sm" style={{ flex: 1, justifyContent: 'center' }} onClick={e => { e.stopPropagation(); openEdit(bldg); }}>Edit</button>
+                <button className="btn btn-primary btn-sm" style={{ flex: 1, justifyContent: 'center' }} onClick={e => { e.stopPropagation(); setSelectedBuilding(bldg); }}>View Details</button>
+              </div>
+            </div>
+          ))}
+          {filtered.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: 13 }}>
+              No buildings match your filters.
+            </div>
+          )}
         </div>
       </div>
 
