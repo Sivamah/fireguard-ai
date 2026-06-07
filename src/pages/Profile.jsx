@@ -8,7 +8,7 @@ export default function Profile() {
   const [email, setEmail] = useState(user?.email || '');
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [avatar, setAvatar] = useState(null); // base64 image if user uploads
+  const [avatar, setAvatar] = useState(user?.avatarData || null); // base64 image if user uploads
   const fileInputRef = useRef(null);
 
   const handleSave = (e) => {
@@ -16,7 +16,7 @@ export default function Profile() {
     setLoading(true);
     setSaved(false);
     setTimeout(() => {
-      updateProfile({ name, email });
+      updateProfile({ name, email, avatarData: avatar });
       setLoading(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);

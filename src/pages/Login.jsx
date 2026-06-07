@@ -84,41 +84,7 @@ export default function Login() {
           <p style={{ fontSize: 13.5, color: 'var(--text-muted)' }}>Sign in to continue to your dashboard</p>
         </div>
 
-        {/* Demo account pills */}
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 12 }}>
-            Demo Accounts
-          </div>
-          <div style={{ display: 'flex', gap: 10 }}>
-            {DEMO.map(d => {
-              const isSelected = selectedDemo === d.label;
-              return (
-                <button
-                  key={d.label}
-                  onClick={() => fillDemo(d)}
-                  style={{
-                    flex: 1, padding: '10px 4px',
-                    border: `1px solid ${isSelected ? d.color : 'var(--border-light)'}`,
-                    borderRadius: 'var(--radius-sm)',
-                    background: isSelected ? `${d.color}10` : 'var(--bg-subtle)',
-                    cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s var(--ease)'
-                  }}
-                  onMouseEnter={e => { if(!isSelected) e.currentTarget.style.borderColor = 'var(--border)'; }}
-                  onMouseLeave={e => { if(!isSelected) e.currentTarget.style.borderColor = 'var(--border-light)'; }}
-                >
-                  <div style={{ fontSize: 12, fontWeight: 700, color: isSelected ? d.color : 'var(--text-primary)' }}>{d.label}</div>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{d.desc}</div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '24px 0' }}>
-          <div className="divider" style={{ flex: 1 }} />
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>or enter credentials</span>
-          <div className="divider" style={{ flex: 1 }} />
-        </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>

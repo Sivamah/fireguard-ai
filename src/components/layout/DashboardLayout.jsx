@@ -181,7 +181,9 @@ export default function DashboardLayout() {
         {/* User Footer */}
         <div className="sidebar-footer">
           <div className="sidebar-user" onClick={() => navigate('/profile')}>
-            <div className="sidebar-avatar">{userInitials}</div>
+            <div className="sidebar-avatar" style={{ overflow: 'hidden', padding: user?.avatarData ? 0 : undefined }}>
+              {user?.avatarData ? <img src={user.avatarData} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : userInitials}
+            </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="sidebar-user-name">{user?.name || 'Guest'}</div>
               <div className="sidebar-user-role">{user?.role || 'Viewer'}</div>
@@ -230,13 +232,13 @@ export default function DashboardLayout() {
                 onClick={() => { setProfileOpen(v => !v); setNotifOpen(false); }}
                 style={{
                   width: 38, height: 38, borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #22C55E, #1F6F50)',
+                  background: user?.avatarData ? 'transparent' : 'linear-gradient(135deg, #22C55E, #1F6F50)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 13, fontWeight: 700, color: 'white', cursor: 'pointer',
-                  border: '2px solid var(--border)', userSelect: 'none'
+                  border: '2px solid var(--border)', userSelect: 'none', overflow: 'hidden'
                 }}
               >
-                {userInitials}
+                {user?.avatarData ? <img src={user.avatarData} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : userInitials}
               </div>
 
               {/* Profile Dropdown */}
