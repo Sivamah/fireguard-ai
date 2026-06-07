@@ -1,0 +1,152 @@
+.table-card {
+    margin-top: var(--spacing-6);
+}
+
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.data-table th {
+    text-align: left;
+    padding: var(--spacing-3) var(--spacing-4);
+    background-color: var(--color-bg-light);
+    color: var(--color-text-light);
+    font-weight: 600;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.data-table td {
+    padding: var(--spacing-4);
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+    color: var(--color-text-charcoal);
+}
+
+.data-table tr:hover {
+    background-color: #f8fafc;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.fw-500 {
+    font-weight: 500;
+}
+
+.text-light {
+    color: var(--color-text-light);
+}
+
+.status-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.badge-safe {
+    background-color: #D1FAE5;
+    color: #065F46;
+}
+
+.badge-warning {
+    background-color: #FEF3C7;
+    color: #92400E;
+}
+
+.badge-critical {
+    background-color: #FECACA;
+    color: #991B1B;
+}
+
+.compliance-wrapper {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.progress-bar-bg {
+    width: 80px;
+    height: 6px;
+    background-color: #e2e8f0;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    border-radius: 10px;
+}
+
+.bg-safe {
+    background-color: var(--color-accent-green);
+}
+
+.bg-warning {
+    background-color: var(--color-accent-yellow);
+}
+
+.bg-critical {
+    background-color: var(--color-accent-red);
+}
+
+.text-safe {
+    color: var(--color-accent-green);
+    font-weight: 600;
+}
+
+.text-warning {
+    color: var(--color-accent-yellow);
+    font-weight: 600;
+}
+
+.text-critical {
+    color: var(--color-accent-red);
+    font-weight: 600;
+}
+
+.action-btn {
+    background: none;
+    border: none;
+    color: var(--color-text-light);
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.action-btn:hover {
+    color: var(--color-primary-navy);
+}
+
+.primary-btn {
+    background-color: var(--color-primary-navy);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: var(--border-radius-md);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.2s;
+}
+
+.primary-btn:hover {
+    background-color: var(--color-secondary-navy);
+}
+
+.loading-cell {
+    padding: var(--spacing-8);
+    font-style: italic;
+    color: var(--color-text-light);
+}

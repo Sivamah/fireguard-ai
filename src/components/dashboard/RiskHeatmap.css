@@ -1,0 +1,135 @@
+.risk-card {
+    min-height: 300px;
+}
+
+.card-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-4);
+}
+
+.legend-hint {
+    font-size: 0.75rem;
+    color: var(--color-accent-green);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+}
+
+.legend-hint::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background-color: var(--color-accent-green);
+    border-radius: 50%;
+    margin-right: 6px;
+    animation: pulse 2s infinite;
+}
+
+.heatmap-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-2);
+    flex: 1;
+}
+
+.heat-block {
+    aspect-ratio: 1;
+    border-radius: var(--border-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.4);
+    background-color: var(--color-bg-light);
+    transition: transform 0.2s;
+    cursor: default;
+}
+
+.heat-block:hover {
+    transform: scale(1.05);
+    box-shadow: var(--shadow-sm);
+}
+
+.heat-block.empty {
+    background-color: transparent;
+    border: 1px dashed #e2e8f0;
+}
+
+.risks-low {
+    background-color: #D1FAE5;
+    color: #065F46;
+}
+
+/* Green-100 */
+.risks-medium {
+    background-color: #FEF3C7;
+    color: #92400E;
+}
+
+/* Yellow-100 */
+.risks-high {
+    background-color: #FDBA74;
+    color: #9A3412;
+}
+
+/* Orange-300 */
+.risks-critical {
+    background-color: #FECACA;
+    color: #991B1B;
+}
+
+/* Red-200 */
+
+.risk-legend {
+    display: flex;
+    gap: var(--spacing-4);
+    margin-top: var(--spacing-4);
+    justify-content: center;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    font-size: 0.75rem;
+    color: var(--color-text-light);
+}
+
+.legend-item .box {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    margin-right: 4px;
+}
+
+.box.low {
+    background-color: #D1FAE5;
+}
+
+.box.med {
+    background-color: #FEF3C7;
+}
+
+.box.high {
+    background-color: #FDBA74;
+}
+
+.box.crit {
+    background-color: #FECACA;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.4;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}

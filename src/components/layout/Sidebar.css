@@ -1,0 +1,109 @@
+.sidebar {
+    width: 250px;
+    background-color: var(--color-primary-navy);
+    color: var(--color-text-white);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0;
+    top: 0;
+    box-shadow: var(--shadow-lg);
+    z-index: 100;
+}
+
+.sidebar-header {
+    height: 64px;
+    display: flex;
+    align-items: center;
+    padding: 0 var(--spacing-6);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.logo-icon {
+    margin-right: var(--spacing-2);
+}
+
+.brand-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.sidebar-nav {
+    flex: 1;
+    padding: var(--spacing-6) 0;
+}
+
+.nav-item {
+    margin-bottom: var(--spacing-1);
+}
+
+/* NavLink uses 'a' tag structure, but we used .nav-link className */
+.nav-item .nav-link {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-2) var(--spacing-6);
+    color: var(--color-text-light);
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+}
+
+.nav-item .nav-link:hover {
+    color: var(--color-text-white);
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* React Router automatically adds 'active' class to NavLink */
+.nav-item .nav-link.active {
+    color: var(--color-text-white);
+    background-color: rgba(255, 255, 255, 0.1);
+    border-left-color: var(--color-accent-red);
+}
+
+.nav-item .nav-link span {
+    margin-left: var(--spacing-4);
+    font-weight: 500;
+}
+
+.mt-auto {
+    margin-top: auto;
+}
+
+.sidebar-footer {
+    padding: var(--spacing-4) var(--spacing-6);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: var(--color-secondary-navy);
+}
+
+.user-mini-profile {
+    display: flex;
+    align-items: center;
+}
+
+.avatar {
+    width: 36px;
+    height: 36px;
+    background-color: var(--color-accent-blue);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    margin-right: var(--spacing-2);
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.user-role {
+    font-size: 0.75rem;
+    color: var(--color-text-light);
+}
