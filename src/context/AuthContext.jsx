@@ -1,56 +1,22 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-
-// ─── Demo User Accounts ─────────────────────────────────────────────────────
-const DEMO_ACCOUNTS = [
-  {
-    id: 'USR-001',
-    name: 'Arjun Kapoor',
-    email: 'admin@fireguard.ai',
-    password: 'admin123',
-    role: 'Admin',
-    avatar: 'AK',
-    buildings: 'All',
-    status: 'Active',
-  },
-  {
-    id: 'USR-004',
-    name: 'Anjali Nair',
-    email: 'analyst@fireguard.ai',
-    password: 'analyst123',
-    role: 'Analyst',
-    avatar: 'AN',
-    buildings: 'Prism Corporate Center',
-    status: 'Active',
-  },
-  {
-    id: 'USR-002',
-    name: 'Priya Sharma',
-    email: 'auditor@fireguard.ai',
-    password: 'auditor123',
-    role: 'Auditor',
-    avatar: 'PS',
-    buildings: 'Nexus Tower, Meridian Plaza',
-    status: 'Active',
-  },
-];
+import { users as DEMO_USERS } from '../data/mockData';
 
 // ─── Session Config ──────────────────────────────────────────────────────────
-const SESSION_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+const SESSION_DURATION_MS = 60 * 60 * 1000; // 60 minutes
 const SESSION_KEY = 'fireguard_session';
-const TOKEN_KEY = 'fireguard_token';
+const TOKEN_KEY   = 'fireguard_token';
+const THEME_KEY   = 'fireguard_theme';
 
 // ─── Fake JWT Generator ──────────────────────────────────────────────────────
 function generateToken(user) {
-  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const header  = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
   const payload = btoa(JSON.stringify({
-    sub: user.id,
-    name: user.name,
-    role: user.role,
-    iat: Date.now(),
-    exp: Date.now() + SESSION_DURATION_MS,
+    sub: user.id, name: user.name, role: user.role,
+    companyId: user.companyId,
+    iat: Date.now(), exp: Date.now() + SESSION_DURATION_MS,
   }));
-  const signature = btoa(`${user.id}-${user.role}-fireguard-secret`);
-  return `${header}.${payload}.${signature}`;
+  const sig = btoa(`${user.id}-${user.role}-fireguard-secret`);
+  return `${header}.${payload}.${sig}`;
 }
 
 function parseToken(token) {
@@ -58,25 +24,36 @@ function parseToken(token) {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
     const payload = JSON.parse(atob(parts[1]));
-    if (payload.exp < Date.now()) return null; // expired
+    if (payload.exp < Date.now()) return null;
     return payload;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 // ─── Auth Context ─────────────────────────────────────────────────────────────
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser]                   = useState(null);
+  const [isLoading, setIsLoading]         = useState(true);
   const [sessionExpiry, setSessionExpiry] = useState(null);
   const [sessionWarning, setSessionWarning] = useState(false);
+  const [theme, setThemeState]            = useState(() => localStorage.getItem(THEME_KEY) || 'light');
+
+  // ── Apply theme to DOM ──
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme === 'dark' ? 'dark' : '');
+    localStorage.setItem(THEME_KEY, theme);
+  }, [theme]);
+
+  const toggleTheme = useCallback(() => {
+    setThemeState(prev => prev === 'light' ? 'dark' : 'light');
+  }, []);
+
+  const setTheme = useCallback((t) => setThemeState(t), []);
 
   // ── Restore session on mount ──
   useEffect(() => {
-    const token = localStorage.getItem(TOKEN_KEY);
+    const token       = localStorage.getItem(TOKEN_KEY);
     const sessionData = localStorage.getItem(SESSION_KEY);
     if (token && sessionData) {
       const payload = parseToken(token);
@@ -85,7 +62,6 @@ export function AuthProvider({ children }) {
         setUser(session.user);
         setSessionExpiry(payload.exp);
       } else {
-        // Token expired
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(SESSION_KEY);
       }
@@ -93,43 +69,60 @@ export function AuthProvider({ children }) {
     setIsLoading(false);
   }, []);
 
-  // ── Session timeout warning (warn 5 min before expiry) ──
+  // ── Session timeout warning (warn 10 min before expiry) ──
   useEffect(() => {
     if (!sessionExpiry) return;
-    const warnAt = sessionExpiry - 5 * 60 * 1000;
-    const now = Date.now();
-    if (warnAt <= now) {
-      setSessionWarning(true);
-      return;
-    }
-    const warnTimer = setTimeout(() => setSessionWarning(true), warnAt - now);
+    const warnAt = sessionExpiry - 10 * 60 * 1000;
+    const now    = Date.now();
+    if (warnAt <= now) { setSessionWarning(true); return; }
+    const warnTimer   = setTimeout(() => setSessionWarning(true), warnAt - now);
     const expireTimer = setTimeout(() => logout(), sessionExpiry - now);
-    return () => {
-      clearTimeout(warnTimer);
-      clearTimeout(expireTimer);
-    };
+    return () => { clearTimeout(warnTimer); clearTimeout(expireTimer); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionExpiry]);
 
-  // ── Login ──
+  // ── Password Login (primary demo flow) ──
   const login = useCallback(async (email, password) => {
-    // Simulate network delay
-    await new Promise(r => setTimeout(r, 800));
-    const account = DEMO_ACCOUNTS.find(
+    await new Promise(r => setTimeout(r, 700));
+    const account = DEMO_USERS.find(
       a => a.email.toLowerCase() === email.toLowerCase() && a.password === password
     );
-    if (!account) {
-      throw new Error('Invalid email or password. Please try again.');
-    }
+    if (!account) throw new Error('Invalid email or password. Please try again.');
+    if (account.status !== 'Active') throw new Error('Your account is inactive. Please contact support.');
+    return _createSession(account);
+  }, []);
+
+  // ── Send OTP ──
+  const sendOtp = useCallback(async (email) => {
+    await new Promise(r => setTimeout(r, 800));
+    const account = DEMO_USERS.find(a => a.email.toLowerCase() === email.toLowerCase());
+    if (!account) throw new Error('Email not found. Please contact your administrator.');
+    if (account.status !== 'Active') throw new Error('Your account is inactive. Please contact support.');
+    return true;
+  }, []);
+
+  // ── Verify OTP & Login ──
+  const verifyOtp = useCallback(async (email, code) => {
+    await new Promise(r => setTimeout(r, 600));
+    if (code !== '123456') throw new Error('Invalid code. For this demo, use 123456.');
+    const account = DEMO_USERS.find(a => a.email.toLowerCase() === email.toLowerCase());
+    if (!account) throw new Error('Account not found.');
+    return _createSession(account);
+  }, []);
+
+  function _createSession(account) {
+    // Strip password before storing
+    // eslint-disable-next-line no-unused-vars
     const { password: _pw, ...safeUser } = account;
-    const token = generateToken(safeUser);
+    const token   = generateToken(safeUser);
     const payload = parseToken(token);
-    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(TOKEN_KEY,   token);
     localStorage.setItem(SESSION_KEY, JSON.stringify({ user: safeUser }));
     setUser(safeUser);
     setSessionExpiry(payload.exp);
     setSessionWarning(false);
     return safeUser;
-  }, []);
+  }
 
   // ── Logout ──
   const logout = useCallback(() => {
@@ -142,10 +135,9 @@ export function AuthProvider({ children }) {
 
   // ── Extend session ──
   const extendSession = useCallback(() => {
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (!user || !token) return;
+    if (!user) return;
     const newToken = generateToken(user);
-    const payload = parseToken(newToken);
+    const payload  = parseToken(newToken);
     localStorage.setItem(TOKEN_KEY, newToken);
     setSessionExpiry(payload.exp);
     setSessionWarning(false);
@@ -167,15 +159,22 @@ export function AuthProvider({ children }) {
     isLoading,
     sessionWarning,
     sessionExpiry,
+    theme,
+    toggleTheme,
+    setTheme,
     login,
+    sendOtp,
+    verifyOtp,
     logout,
     extendSession,
     updateProfile,
-    // Helpers
-    isAdmin: user?.role === 'Admin',
-    isAnalyst: user?.role === 'Analyst',
-    isAuditor: user?.role === 'Auditor',
-    DEMO_ACCOUNTS: DEMO_ACCOUNTS.map(({ password: _p, ...a }) => a),
+    // Role Helpers
+    isSuperAdmin:    user?.role === 'Super Admin',
+    isCompanyAdmin:  user?.role === 'Company Admin',
+    isSupplier:      user?.role === 'Supplier',
+    isBuildingOwner: user?.role === 'Building Owner',
+    isAuditor:       user?.role === 'Auditor',
+    isAnalyst:       user?.role === 'Analyst',
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

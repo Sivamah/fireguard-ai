@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Search, ClipboardCheck, CheckCircle, AlertTriangle, Clock, Plus, Eye, Download, Calendar, User } from 'lucide-react';
 import PageHeader from '../components/ui/PageHeader';
 import { audits as initialAudits, upcomingAudits as initialUpcoming } from '../data/mockData';
+import { useAuth } from '../context/AuthContext';
 
 const StatusBadge = ({ status }) => {
   const configs = {
@@ -17,8 +18,24 @@ const StatusBadge = ({ status }) => {
 const EMPTY_SCHEDULE = { building: '', auditor: '', date: '', priority: 'Medium', notes: '' };
 
 export default function Audits() {
-  const [audits] = useState(initialAudits);
-  const [upcomingAudits, setUpcomingAudits] = useState(initialUpcoming);
+  const { user, isSuperAdmin } = useAuth();
+  
+  const initialScopedAudits = React.useMemo(() => {
+    return isSuperAdmin ? initialAudits : initialAudits.filter(a => a.companyId === user?.companyId);
+  }, [isSuperAdmin, user]);
+  
+  const initialScopedUpcoming = React.useMemo(() => {
+    return isSuperAdmin ? initialUpcoming : initialUpcoming.filter(a => a.companyId === user?.companyId);
+  }, [isSuperAdmin, user]);
+
+  const [audits, setAudits] = useState(initialScopedAudits);
+  const [upcomingAudits, setUpcomingAudits] = useState(initialScopedUpcoming);
+  
+  React.useEffect(() => {
+    setAudits(initialScopedAudits);
+    setUpcomingAudits(initialScopedUpcoming);
+  }, [initialScopedAudits, initialScopedUpcoming]);
+
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState('history');
   const [selected, setSelected] = useState(null);
@@ -69,6 +86,7 @@ export default function Audits() {
       auditor: scheduleForm.auditor,
       priority: scheduleForm.priority,
       notes: scheduleForm.notes,
+      companyId: user?.companyId,
     };
     setUpcomingAudits(prev => [...prev, newAudit]);
     setScheduleForm(EMPTY_SCHEDULE);

@@ -4,7 +4,8 @@ import {
   RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell
 } from 'recharts';
-import { aiRiskData, buildings } from '../data/mockData';
+import { aiRiskData as initialAiRiskData, buildings as initialBuildings } from '../data/mockData';
+import { useAuth } from '../context/AuthContext';
 
 const RiskMeter = ({ score }) => {
   const angle = (score / 100) * 180;
@@ -58,7 +59,24 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 export default function AIRisk() {
-  const [selectedBuilding, setSelectedBuilding] = useState(aiRiskData.buildings[0]);
+  const { user, isSuperAdmin } = useAuth();
+  
+  const buildings = React.useMemo(() => {
+    return isSuperAdmin ? initialBuildings : initialBuildings.filter(b => b.companyId === user?.companyId);
+  }, [isSuperAdmin, user]);
+  
+  const aiRiskData = React.useMemo(() => {
+    return {
+      buildings: isSuperAdmin ? initialAiRiskData.buildings : initialAiRiskData.buildings.filter(b => b.companyId === user?.companyId)
+    };
+  }, [isSuperAdmin, user]);
+
+  const [selectedBuilding, setSelectedBuilding] = useState(aiRiskData.buildings[0] || null);
+  
+  React.useEffect(() => {
+    setSelectedBuilding(aiRiskData.buildings[0] || null);
+  }, [aiRiskData]);
+
   const [animating, setAnimating] = useState(false);
   const [loading, setLoading] = useState(false);
 

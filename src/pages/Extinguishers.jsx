@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Search, Flame, AlertTriangle, CheckCircle, Clock, Plus, Eye, ChevronUp, ChevronDown, X, RefreshCw } from 'lucide-react';
 import PageHeader from '../components/ui/PageHeader';
 import { extinguishers as initialExtinguishers } from '../data/mockData';
+import { useAuth } from '../context/AuthContext';
 
 const StatusBadge = ({ status }) => {
   const configs = {
@@ -20,7 +21,18 @@ const StatusBadge = ({ status }) => {
 const EMPTY_ADD = { building: '', floor: '', type: 'CO₂', installDate: '', expiryDate: '' };
 
 export default function Extinguishers() {
-  const [extinguishers, setExtinguishers] = useState(initialExtinguishers);
+  const { user, isSuperAdmin } = useAuth();
+  
+  const initialScopedExtinguishers = useMemo(() => {
+    return isSuperAdmin ? initialExtinguishers : initialExtinguishers.filter(e => e.companyId === user?.companyId);
+  }, [isSuperAdmin, user]);
+
+  const [extinguishers, setExtinguishers] = useState(initialScopedExtinguishers);
+  
+  React.useEffect(() => {
+    setExtinguishers(initialScopedExtinguishers);
+  }, [initialScopedExtinguishers]);
+
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('All');
   const [sortKey, setSortKey] = useState('id');
@@ -93,6 +105,7 @@ export default function Extinguishers() {
       expiryDate: addForm.expiryDate,
       status: 'Active',
       lastInspection: today,
+      companyId: user?.companyId,
     };
     setExtinguishers(prev => [...prev, newUnit]);
     setAddForm(EMPTY_ADD);

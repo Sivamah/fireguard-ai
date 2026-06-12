@@ -1,620 +1,578 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Building2, Flame, ShieldCheck, AlertTriangle, CalendarClock,
-  Bell, TrendingUp, TrendingDown, ArrowRight, Zap,
-  Plus, FileText, Calendar, RefreshCw, ChevronRight,
-  CheckCircle, Clock, AlertCircle, Bot, Sparkles
+  Building2, Flame, ClipboardCheck, AlertTriangle, TrendingUp,
+  TrendingDown, ChevronRight, BrainCircuit, ShieldCheck, Calendar,
+  Zap, Package, FileText, Users, Handshake, Globe, BarChart2,
+  ArrowUpRight, CheckCircle2, Clock, MapPin
 } from 'lucide-react';
 import {
-  AreaChart, Area, LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
-import {
-  buildings, alerts, upcomingAudits, complianceTrend,
-  riskDistribution, extinguisherStatus
-} from '../data/mockData';
 import { useAuth } from '../context/AuthContext';
+import {
+  companies, buildings, extinguishers, audits, upcomingAudits,
+  alerts, complianceTrend, contracts, fireIncidents, suppliers,
+  supplierAnalytics
+} from '../data/mockData';
 
-/* ── Derived KPIs ─────────────────────────────────────────── */
-const totalBuildings    = buildings.length;
-const totalExtinguishers= buildings.reduce((acc, b) => acc + b.extinguishers, 0);
-const avgCompliance     = Math.round(buildings.reduce((acc, b) => acc + b.complianceScore, 0) / buildings.length);
-const highRisk          = buildings.filter(b => b.riskLevel === 'High' || b.riskLevel === 'Critical').length;
-const upcomingCount     = upcomingAudits.length;
-const unreadAlerts      = alerts.filter(a => !a.read).length;
+// ── Helpers ──
+const riskColor = (level) => ({ Critical: '#EF4444', High: '#F97316', Medium: '#F59E0B', Low: '#22C55E' }[level] || '#6B7280');
+const riskBg    = (level) => ({ Critical: '#FEF2F2', High: '#FFF7ED', Medium: '#FFFBEB', Low: '#F0FDF4' }[level] || '#F9FAFB');
 
-/* ── Campus Map Data ─────────────────────────────────────── */
-const CAMPUS = [
-  { name: 'Nexus Tower',     risk: 'Low',      score: 94, floors: 42 },
-  { name: 'Helix Park',      risk: 'Medium',   score: 71, floors: 28 },
-  { name: 'Prism Center',    risk: 'Critical', score: 42, floors: 18 },
-  { name: 'Azure Tech Hub',  risk: 'Low',      score: 88, floors: 14 },
-  { name: 'Meridian Plaza',  risk: 'High',     score: 61, floors: 22 },
-];
-
-const RISK_COLORS = {
-  Low:      { bg: '#F0FDF4', border: '#86EFAC', dot: '#22C55E', text: '#15803D', label: 'Low Risk'      },
-  Medium:   { bg: '#FFFBEB', border: '#FCD34D', dot: '#F59E0B', text: '#B45309', label: 'Medium Risk'   },
-  High:     { bg: '#FFF7ED', border: '#FDBA74', dot: '#F97316', text: '#C2410C', label: 'High Risk'     },
-  Critical: { bg: '#FEF2F2', border: '#FCA5A5', dot: '#EF4444', text: '#B91C1C', label: 'Critical Risk' },
-};
-
-/* ── Subcomponents ───────────────────────────────────────── */
-// eslint-disable-next-line no-unused-vars
-const KpiCard = ({ icon: Icon, iconBg, iconColor, label, value, desc, descColor, stagger }) => (
-  <div className="kpi-card animate-up" style={{ animationDelay: `${stagger * 0.07}s` }}>
-    <div className="kpi-icon" style={{ background: iconBg }}>
-      <Icon size={20} color={iconColor} strokeWidth={2} />
+function KpiCard({ label, value, icon: Icon, iconBg, iconColor, accentColor, delta, deltaLabel, onClick }) {
+  return (
+    <div className="kpi-card animate-up" onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default', '--kpi-accent': accentColor || 'var(--color-primary)' }}>
+      <div className="kpi-icon" style={{ background: iconBg || 'var(--color-primary-ultra)', color: iconColor || 'var(--color-primary)' }}>
+        <Icon size={22} />
+      </div>
+      <div className="kpi-label">{label}</div>
+      <div className="kpi-value">{value}</div>
+      {delta !== undefined && (
+        <div className="kpi-desc">
+          {delta >= 0 ? <TrendingUp size={13} color="var(--status-success)" /> : <TrendingDown size={13} color="var(--status-danger)" />}
+          <span style={{ color: delta >= 0 ? 'var(--status-success)' : 'var(--status-danger)', fontWeight: 600 }}>{Math.abs(delta)}%</span>
+          <span style={{ color: 'var(--text-muted)' }}>{deltaLabel}</span>
+        </div>
+      )}
     </div>
-    <div className="kpi-label">{label}</div>
-    <div className="kpi-value">{value}</div>
-    <div className="kpi-desc" style={{ color: descColor || 'var(--text-secondary)' }}>{desc}</div>
-  </div>
-);
+  );
+}
 
-const AlertRow = ({ alert }) => {
-  const cfg = {
-    Critical: { bg: '#FEF2F2', border: '#FECACA', dot: '#EF4444', textColor: '#B91C1C' },
-    High:     { bg: '#FFF7ED', border: '#FDBA74', dot: '#F97316', textColor: '#C2410C' },
-    Medium:   { bg: '#FFFBEB', border: '#FDE68A', dot: '#F59E0B', textColor: '#92400E' },
-    Low:      { bg: '#EFF6FF', border: '#BFDBFE', dot: '#3B82F6', textColor: '#1D4ED8' },
-  }[alert.type] || {};
+function SectionHeader({ title, sub, action, onAction }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div>
+        <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>{title}</h2>
+        {sub && <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 3 }}>{sub}</p>}
+      </div>
+      {action && <button onClick={onAction} className="btn btn-ghost btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>{action} <ChevronRight size={13} /></button>}
+    </div>
+  );
+}
+
+// ── Tamil Nadu District Risk Map ──────────────────────────────────────────────
+function DistrictRiskMap({ scoped }) {
+  const districtData = useMemo(() => {
+    const districts = ['Coimbatore', 'Chennai', 'Madurai', 'Tiruppur', 'Salem'];
+    return districts.map(d => {
+      const dBuildings = scoped.filter(b => b.district === d);
+      const avgScore   = dBuildings.length ? Math.round(dBuildings.reduce((s, b) => s + b.complianceScore, 0) / dBuildings.length) : null;
+      const riskLevel  = dBuildings.some(b => b.riskLevel === 'Critical') ? 'Critical'
+        : dBuildings.some(b => b.riskLevel === 'High') ? 'High'
+        : dBuildings.some(b => b.riskLevel === 'Medium') ? 'Medium'
+        : dBuildings.length ? 'Low' : null;
+      return { name: d, buildings: dBuildings.length, avgScore, riskLevel, alerts: dBuildings.reduce((s, b) => s + b.alerts, 0) };
+    }).filter(d => d.buildings > 0);
+  }, [scoped]);
 
   return (
-    <div style={{
-      display: 'flex', gap: 14, alignItems: 'flex-start',
-      padding: '14px 20px', borderBottom: '1px solid var(--border-light)',
-      background: alert.read ? 'transparent' : cfg.bg,
-      transition: 'background 0.12s'
-    }}>
-      <div style={{ width: 8, height: 8, borderRadius: '50%', background: cfg.dot, flexShrink: 0, marginTop: 5 }} />
-      <div style={{ flex: 1 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-          <div>
-            <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-primary)' }}>{alert.building}</span>
-            {!alert.read && (
-              <span style={{ marginLeft: 8, fontSize: 9.5, fontWeight: 700, background: cfg.dot, color: 'white', padding: '1px 6px', borderRadius: 99 }}>NEW</span>
-            )}
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
+        {districtData.map(d => (
+          <div key={d.name} className={`district-card ${d.riskLevel?.toLowerCase()}`}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>{d.name}</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: riskColor(d.riskLevel), lineHeight: 1 }}>{d.avgScore}%</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{d.buildings} building{d.buildings !== 1 ? 's' : ''}</div>
+            {d.alerts > 0 && <div style={{ marginTop: 6, fontSize: 10, fontWeight: 700, color: '#EF4444', background: '#FEF2F2', padding: '2px 7px', borderRadius: 20, display: 'inline-block' }}>{d.alerts} alert{d.alerts !== 1 ? 's' : ''}</div>}
           </div>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>{alert.time}</span>
-        </div>
-        <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginTop: 3, lineHeight: 1.5 }}>{alert.message}</div>
+        ))}
       </div>
     </div>
   );
-};
+}
 
-const AuditRow = ({ audit, navigate }) => {
-  const daysLeft = Math.ceil((new Date(audit.date) - new Date()) / (1000 * 60 * 60 * 24));
-  const urgency = daysLeft <= 3 ? 'danger' : daysLeft <= 7 ? 'warning' : 'success';
-  const colors = { danger: '#EF4444', warning: '#F59E0B', success: '#22C55E' };
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 14, padding: '12px 20px',
-      borderBottom: '1px solid var(--border-light)', transition: 'background 0.12s', cursor: 'pointer'
-    }}
-      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
-      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-      onClick={() => navigate('/audits')}
-    >
-      <div style={{ width: 36, height: 36, borderRadius: 8, background: `${colors[urgency]}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        <CalendarClock size={16} color={colors[urgency]} />
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{audit.building}</div>
-        <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>{audit.auditor} · {audit.date}</div>
-      </div>
-      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: colors[urgency] }}>{daysLeft}d</div>
-        <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>left</div>
-      </div>
-    </div>
-  );
-};
-
-/* ── Donut Chart ─────────────────────────────────────────── */
-const DonutChart = ({ data, label }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
-    <div style={{ position: 'relative', width: 160, height: 160 }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="50%"
-            innerRadius={52}
-            outerRadius={72}
-            paddingAngle={3}
-            dataKey="value"
-            strokeWidth={0}
-          >
-            {data.map((entry, index) => (
-              <Cell key={index} fill={entry.color} />
-            ))}
-          </Pie>
-        </PieChart>
-      </ResponsiveContainer>
-      <div style={{
-        position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center'
-      }}>
-        <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)' }}>
-          {data.reduce((a, d) => a + d.value, 0)}
-        </div>
-        <div style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 500 }}>{label}</div>
-      </div>
-    </div>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
-      {data.map((item, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12.5 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 10, height: 10, borderRadius: 3, background: item.color }} />
-            <span style={{ color: 'var(--text-secondary)' }}>{item.name}</span>
-          </div>
-          <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{item.value}%</span>
-        </div>
-      ))}
-    </div>
-  </div>
-);
-
-/* ── Building Risk Campus ────────────────────────────────── */
-const CampusMap = ({ navigate }) => (
-  <div style={{
-    background: 'linear-gradient(145deg, #E8F5EE 0%, #F0F9F4 50%, #EAF5F0 100%)',
-    borderRadius: 'var(--radius-lg)', padding: 24, minHeight: 240,
-    border: '1px solid #C7E8D5'
-  }}>
-    <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 12 }}>
-      {CAMPUS.map((b, i) => {
-        const cfg = RISK_COLORS[b.risk];
-        const heights = [120, 96, 80, 72, 88];
-        const h = heights[i] || 80;
-        return (
-          <div
-            key={i}
-            className="campus-building"
-            onClick={() => navigate('/buildings')}
-            style={{ cursor: 'pointer', flexShrink: 0, minWidth: 90 }}
-          >
-            {/* Tower graphic */}
-            <div style={{
-              width: '100%', height: h,
-              background: cfg.bg, border: `2px solid ${cfg.border}`,
-              borderRadius: 10,
-              display: 'flex', flexDirection: 'column', alignItems: 'center',
-              justifyContent: 'center', gap: 6,
-              transition: 'all 0.2s var(--ease-spring)',
-              boxShadow: `0 4px 12px ${cfg.dot}20`
-            }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05) translateY(-3px)'; e.currentTarget.style.boxShadow = `0 8px 20px ${cfg.dot}35`; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1) translateY(0)'; e.currentTarget.style.boxShadow = `0 4px 12px ${cfg.dot}20`; }}
-            >
-              <Building2 size={20} color={cfg.dot} strokeWidth={1.5} />
-              <div style={{ fontSize: 13, fontWeight: 800, color: cfg.text }}>{b.score}%</div>
-              <div style={{ fontSize: 10, color: cfg.text, opacity: 0.7 }}>{b.floors}F</div>
-            </div>
-            {/* Labels */}
-            <div style={{ textAlign: 'center', marginTop: 4 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3 }}>{b.name}</div>
-              <div style={{
-                marginTop: 4, fontSize: 10, fontWeight: 700,
-                padding: '2px 8px', borderRadius: 99,
-                background: cfg.bg, color: cfg.text, border: `1px solid ${cfg.border}`,
-                display: 'inline-block'
-              }}>
-                {cfg.label}
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-    {/* Legend */}
-    <div style={{ display: 'flex', gap: 16, marginTop: 20, justifyContent: 'center', flexWrap: 'wrap' }}>
-      {Object.entries(RISK_COLORS).map(([key, cfg]) => (
-        <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5 }}>
-          <div style={{ width: 10, height: 10, borderRadius: 3, background: cfg.dot }} />
-          <span style={{ color: 'var(--text-secondary)' }}>{cfg.label}</span>
-        </div>
-      ))}
-    </div>
-  </div>
-);
-
-/* ── Quick Actions ───────────────────────────────────────── */
-const ACTIONS = [
-  { label: 'Add Building',       sub: 'Register new property',       icon: Building2,   bg: '#DFF3E8', color: '#1F6F50', path: '/buildings' },
-  { label: 'Add Extinguisher',   sub: 'Register fire equipment',     icon: Flame,        bg: '#FEE2E2', color: '#DC2626', path: '/extinguishers' },
-  { label: 'Schedule Audit',     sub: 'Book compliance inspection',  icon: Calendar,     bg: '#EFF6FF', color: '#2563EB', path: '/audits' },
-  { label: 'Generate Report',    sub: 'Export compliance data',      icon: FileText,     bg: '#F5F3FF', color: '#7C3AED', path: '/reports' },
-  { label: 'Ask AI Assistant',   sub: 'Get intelligent insights',    icon: Bot,          bg: '#FFFBEB', color: '#D97706', path: '/ai-assistant' },
-];
-
-/* ── Compliance Line Chart ───────────────────────────────── */
-const ComplianceChart = () => {
-  const last6 = complianceTrend.slice(-6);
-  return (
-    <ResponsiveContainer width="100%" height={160}>
-      <AreaChart data={last6} margin={{ top: 5, right: 8, left: -24, bottom: 0 }}>
-        <defs>
-          <linearGradient id="compGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%"  stopColor="#1F6F50" stopOpacity={0.15} />
-            <stop offset="95%" stopColor="#1F6F50" stopOpacity={0}    />
-          </linearGradient>
-          <linearGradient id="targetGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%"  stopColor="#E5E7EB" stopOpacity={0.5} />
-            <stop offset="95%" stopColor="#E5E7EB" stopOpacity={0}   />
-          </linearGradient>
-        </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" vertical={false} />
-        <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-        <YAxis domain={[60, 100]} tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-        <Tooltip
-          contentStyle={{ background: 'white', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, boxShadow: 'var(--shadow-md)' }}
-          formatter={(v, n) => [`${v}%`, n === 'score' ? 'Score' : 'Target']}
-        />
-        <Area type="monotone" dataKey="target" stroke="#E5E7EB" strokeWidth={1.5} fill="url(#targetGrad)" strokeDasharray="5 3" dot={false} />
-        <Area type="monotone" dataKey="score"  stroke="#1F6F50" strokeWidth={2.5} fill="url(#compGrad)"   dot={{ r: 3, fill: '#1F6F50', strokeWidth: 0 }} activeDot={{ r: 5 }} />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-};
-
-/* ── Main Dashboard Component ───────────────────────────── */
-export default function Dashboard() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [ready, setReady] = useState(false);
-
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setReady(true); }, []);
-
-  const firstName = user?.name?.split(' ')[0] || 'there';
-  const now = new Date();
-  const hour = now.getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-
-  if (!ready) return null;
+// ── Role: SUPER ADMIN ─────────────────────────────────────────────────────────
+function SuperAdminDash({ nav }) {
+  const totalExt     = extinguishers.length;
+  const expiredExt   = extinguishers.filter(e => e.status === 'Expired').length;
+  const expiringSoon = extinguishers.filter(e => e.status === 'Expiring Soon').length;
+  const critBuildings = buildings.filter(b => b.riskLevel === 'Critical').length;
+  const activeContracts = contracts.filter(c => c.status === 'Active').length;
+  const unreadAlerts = alerts.filter(a => !a.read).length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-
-      {/* ── GREETING HEADER ── */}
-      <div className="animate-up" style={{ animationDelay: '0s' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20 }}>
-          <div>
-            <h1 style={{ fontSize: 26, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.6px', lineHeight: 1.2 }}>
-              {greeting}, {firstName} 👋
-            </h1>
-            <p style={{ fontSize: 15, color: 'var(--text-secondary)', marginTop: 6, maxWidth: 500 }}>
-              Here's what's happening with your fire safety system today. You have{' '}
-              <span style={{ fontWeight: 700, color: '#EF4444' }}>{unreadAlerts} urgent alerts</span> and{' '}
-              <span style={{ fontWeight: 700, color: '#F59E0B' }}>{upcomingCount} upcoming audits</span>.
-            </p>
-          </div>
-          <button className="btn btn-primary animate-up" style={{ animationDelay: '0.2s', flexShrink: 0 }} onClick={() => navigate('/ai-assistant')}>
-            <Sparkles size={15} /> Ask AI Assistant
+      {/* Greeting */}
+      <div className="animate-up" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>Good afternoon, Siva 👋</h1>
+          <p style={{ fontSize: 13.5, color: 'var(--text-muted)', marginTop: 4 }}>Here's your platform overview for today — {new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="btn btn-secondary btn-sm" onClick={() => nav('/reports')} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <BarChart2 size={14} /> Reports
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={() => nav('/ai-assistant')} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Zap size={14} /> Ask AI
           </button>
         </div>
       </div>
 
-      {/* ── CRITICAL ALERT BANNER ── */}
-      {buildings.some(b => b.riskLevel === 'Critical') && (
-        <div className="animate-up" style={{
-          animationDelay: '0.05s',
-          background: 'linear-gradient(135deg, #FEF2F2 0%, #FFF5F5 100%)',
-          border: '1.5px solid #FECACA',
-          borderRadius: 'var(--radius-lg)',
-          padding: '16px 24px',
-          display: 'flex', alignItems: 'center', gap: 16
-        }}>
-          <div style={{ width: 40, height: 40, borderRadius: 10, background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <AlertTriangle size={20} color="#EF4444" />
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#B91C1C' }}>
-              Action Required — Prism Corporate Center at Critical Risk
-            </div>
-            <div style={{ fontSize: 13, color: '#DC2626', opacity: 0.8, marginTop: 2 }}>
-              Overdue audit · expired extinguishers · compliance at 42% — immediate attention needed
-            </div>
-          </div>
-          <button className="btn btn-danger btn-sm" style={{ flexShrink: 0 }} onClick={() => navigate('/buildings')}>
-            View Details <ArrowRight size={12} />
-          </button>
-        </div>
-      )}
-
-      {/* ── KPI CARDS ── */}
-      <div className="grid grid-3" style={{ gap: 16 }}>
-        <KpiCard
-          icon={Building2} iconBg="#DFF3E8" iconColor="#1F6F50"
-          label="Total Buildings" value={totalBuildings}
-          desc={`${buildings.filter(b => b.riskLevel === 'Low').length} buildings low risk`}
-          stagger={1}
-        />
-        <KpiCard
-          icon={Flame} iconBg="#FEE2E2" iconColor="#EF4444"
-          label="Extinguishers" value={totalExtinguishers}
-          desc={<><span style={{ color: '#EF4444', fontWeight: 700 }}>14%</span> expired or expiring</>}
-          stagger={2}
-        />
-        <KpiCard
-          icon={ShieldCheck} iconBg="#EFF6FF" iconColor="#3B82F6"
-          label="Avg. Compliance" value={`${avgCompliance}%`}
-          desc={<><TrendingUp size={13} style={{ display: 'inline' }} /> <span style={{ color: '#22C55E', fontWeight: 700 }}>+6.2%</span> vs last quarter</>}
-          stagger={3}
-        />
-        <KpiCard
-          icon={AlertTriangle} iconBg="#FFF7ED" iconColor="#F97316"
-          label="High Risk Buildings" value={highRisk}
-          desc="Require immediate attention"
-          descColor="#C2410C"
-          stagger={4}
-        />
-        <KpiCard
-          icon={CalendarClock} iconBg="#F5F3FF" iconColor="#7C3AED"
-          label="Upcoming Audits" value={upcomingCount}
-          desc={`Next: ${upcomingAudits[0]?.building.split(' ')[0]} on ${upcomingAudits[0]?.date}`}
-          stagger={5}
-        />
-        <KpiCard
-          icon={Bell} iconBg="#FFFBEB" iconColor="#D97706"
-          label="Active Alerts" value={unreadAlerts}
-          desc={`${alerts.filter(a => a.type === 'Critical').length} critical need action`}
-          descColor="#B91C1C"
-          stagger={6}
-        />
+      {/* KPI Grid */}
+      <div className="grid grid-5">
+        <KpiCard label="Total Companies"   value={companies.length}    icon={Globe}         iconBg="#E0F2FE" iconColor="#0369A1" accentColor="#0369A1" delta={15} deltaLabel="vs last quarter" />
+        <KpiCard label="Total Buildings"   value={buildings.length}    icon={Building2}      iconBg="var(--color-primary-ultra)" iconColor="var(--color-primary)" accentColor="var(--color-primary)" delta={12} deltaLabel="new this year" />
+        <KpiCard label="Extinguishers"     value={totalExt}            icon={Flame}          iconBg="#FEF3C7" iconColor="#B45309" accentColor="#F59E0B" />
+        <KpiCard label="Active Contracts"  value={activeContracts}     icon={FileText}       iconBg="#E0E7FF" iconColor="#4338CA" accentColor="#4338CA" />
+        <KpiCard label="Critical Alerts"   value={unreadAlerts}        icon={AlertTriangle}  iconBg="#FEF2F2" iconColor="#EF4444" accentColor="#EF4444" />
       </div>
 
-      {/* ── CAMPUS MAP + RISK OVERVIEW ── */}
+      {/* Status strip */}
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        {[
+          { label: 'Expired Extinguishers', val: expiredExt, color: '#EF4444', bg: '#FEF2F2', path: '/extinguishers' },
+          { label: 'Expiring Soon',         val: expiringSoon, color: '#F59E0B', bg: '#FFFBEB', path: '/extinguishers' },
+          { label: 'Critical Risk Buildings', val: critBuildings, color: '#EF4444', bg: '#FEF2F2', path: '/buildings' },
+          { label: 'Overdue Audits',        val: audits.filter(a => a.status === 'Overdue').length, color: '#F97316', bg: '#FFF7ED', path: '/audits' },
+          { label: 'Expiring Contracts',    val: contracts.filter(c => c.status === 'Expiring').length, color: '#B45309', bg: '#FEF3C7', path: '/contracts' },
+        ].map(s => (
+          <div key={s.label} onClick={() => nav(s.path)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: s.bg, border: `1px solid ${s.color}30`, borderRadius: 'var(--radius-full)', cursor: 'pointer', transition: 'all 0.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = s.color; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = `${s.color}30`; }}>
+            <span style={{ fontSize: 18, fontWeight: 800, color: s.color }}>{s.val}</span>
+            <span style={{ fontSize: 12, color: s.color, fontWeight: 600 }}>{s.label}</span>
+            <ArrowUpRight size={12} color={s.color} />
+          </div>
+        ))}
+      </div>
+
+      {/* Map + Compliance Chart */}
       <div className="dashboard-grid-map">
-        {/* Map */}
-        <div className="card animate-up" style={{ animationDelay: '0.15s' }}>
-          <div className="card-header">
-            <div>
-              <div className="card-title">🗺 Building Campus Map</div>
-              <div className="card-subtitle">Visual risk overview across your property portfolio</div>
-            </div>
-            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/buildings')}>
-              View All <ChevronRight size={13} />
-            </button>
-          </div>
-          <div className="card-body">
-            <CampusMap navigate={navigate} />
-          </div>
+        <div className="card">
+          <div className="card-header"><div><div className="card-title">🗺️ Tamil Nadu Risk Map</div><div className="card-subtitle">District-wise compliance overview</div></div></div>
+          <div className="card-body"><DistrictRiskMap scoped={buildings} /></div>
         </div>
-
-        {/* Risk Donut */}
-        <div className="card animate-up" style={{ animationDelay: '0.2s' }}>
-          <div className="card-header">
-            <div>
-              <div className="card-title">Risk Overview</div>
-              <div className="card-subtitle">Portfolio risk distribution</div>
-            </div>
-          </div>
-          <div className="card-body">
-            <DonutChart data={riskDistribution} label="Buildings" />
+        <div className="card">
+          <div className="card-header"><div className="card-title">📊 Compliance Trend</div></div>
+          <div className="card-body" style={{ height: 230 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={complianceTrend.slice(-6)} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
+                <defs>
+                  <linearGradient id="cg1" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#1F6F50" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#1F6F50" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+                <YAxis domain={[60, 100]} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+                <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
+                <Area type="monotone" dataKey="score" stroke="var(--color-primary)" strokeWidth={2} fill="url(#cg1)" />
+                <Area type="monotone" dataKey="target" stroke="#F59E0B" strokeWidth={1.5} strokeDasharray="4 4" fill="none" />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>
 
-      {/* ── COMPLIANCE CHART + EXTINGUISHER STATUS ── */}
-      <div className="dashboard-grid-chart">
-        {/* Compliance Trend */}
-        <div className="card animate-up" style={{ animationDelay: '0.18s' }}>
-          <div className="card-header">
-            <div>
-              <div className="card-title">Compliance Score Trend</div>
-              <div className="card-subtitle">Last 6 months — overall portfolio performance</div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="badge badge-success"><TrendingUp size={10} /> +6.2% YoY</span>
-              <button className="btn btn-ghost btn-sm" onClick={() => {
-                const csv = 'Month,Score,Target\n' + complianceTrend.slice(-6).map(r => `${r.month},${r.score},${r.target}`).join('\n');
-                const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })), download: 'compliance.csv' });
-                document.body.appendChild(a); a.click(); document.body.removeChild(a);
-              }}>Export</button>
-            </div>
-          </div>
-          <div className="card-body">
-            <ComplianceChart />
-            <div style={{ display: 'flex', gap: 20, marginTop: 12, fontSize: 12, color: 'var(--text-muted)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div style={{ width: 24, height: 2, background: '#1F6F50', borderRadius: 2 }} />
-                Compliance Score
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div style={{ width: 24, height: 2, background: '#E5E7EB', borderRadius: 2, borderTop: '1px dashed #9CA3AF' }} />
-                Target (85%)
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Extinguisher Status */}
-        <div className="card animate-up" style={{ animationDelay: '0.22s' }}>
-          <div className="card-header">
-            <div>
-              <div className="card-title">Extinguisher Status</div>
-              <div className="card-subtitle">Equipment health overview</div>
-            </div>
-          </div>
-          <div className="card-body">
-            <DonutChart data={extinguisherStatus} label="Units" />
-          </div>
-        </div>
-      </div>
-
-      {/* ── QUICK ACTIONS ── */}
-      <div className="animate-up" style={{ animationDelay: '0.2s' }}>
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>Quick Actions</div>
-          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 3 }}>Common tasks — click to get started</div>
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
-          {ACTIONS.map((action, i) => {
-            const Icon = action.icon;
-            return (
-              <button
-                key={i}
-                onClick={() => navigate(action.path)}
-                style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
-                  padding: '22px 14px', borderRadius: 'var(--radius-lg)', border: '1.5px solid var(--border)',
-                  background: 'var(--bg-card)', cursor: 'pointer', transition: 'all 0.2s var(--ease-spring)',
-                  textAlign: 'center', flex: '1 1 150px', minWidth: 150
-                }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = action.color; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; e.currentTarget.style.transform = 'translateY(-3px)'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; }}
-              >
-                <div style={{ width: 52, height: 52, borderRadius: 14, background: action.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon size={22} color={action.color} strokeWidth={1.8} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{action.label}</div>
-                  <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 3, lineHeight: 1.4 }}>{action.sub}</div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── ALERTS + UPCOMING AUDITS ── */}
+      {/* Buildings + Alerts */}
       <div className="dashboard-grid-half">
-        {/* Recent Alerts */}
-        <div className="card animate-up" style={{ animationDelay: '0.25s' }}>
+        {/* Recent Buildings */}
+        <div className="card">
           <div className="card-header">
-            <div>
-              <div className="card-title">Recent Alerts</div>
-              <div className="card-subtitle">{unreadAlerts} unread notifications</div>
-            </div>
-            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/buildings')}>View all</button>
+            <SectionHeader title="High Risk Buildings" sub="Requires immediate attention" action="View All" onAction={() => nav('/buildings')} />
           </div>
-          <div style={{ marginTop: 12 }}>
-            {alerts.slice(0, 4).map(alert => (
-              <AlertRow key={alert.id} alert={alert} />
+          <div className="card-body" style={{ paddingTop: 0 }}>
+            {buildings.filter(b => b.riskLevel !== 'Low').slice(0, 4).map(b => (
+              <div key={b.id} onClick={() => nav('/buildings')} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--border-light)', cursor: 'pointer' }}
+                onMouseEnter={e => e.currentTarget.style.paddingLeft = '4px'}
+                onMouseLeave={e => e.currentTarget.style.paddingLeft = '0'}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: riskBg(b.riskLevel), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Building2 size={18} color={riskColor(b.riskLevel)} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 1 }}>{b.district} · {b.type}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: riskColor(b.riskLevel) }}>{b.complianceScore}%</div>
+                  <span style={{ fontSize: 10, background: riskBg(b.riskLevel), color: riskColor(b.riskLevel), padding: '1px 6px', borderRadius: 20, fontWeight: 700 }}>{b.riskLevel}</span>
+                </div>
+              </div>
             ))}
           </div>
         </div>
 
         {/* Upcoming Audits */}
-        <div className="card animate-up" style={{ animationDelay: '0.28s' }}>
+        <div className="card">
           <div className="card-header">
-            <div>
-              <div className="card-title">Upcoming Audits</div>
-              <div className="card-subtitle">Scheduled inspections — stay prepared</div>
-            </div>
-            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/audits')}>Schedule</button>
+            <SectionHeader title="Upcoming Audits" action="View All" onAction={() => nav('/audits')} />
           </div>
-          <div style={{ marginTop: 12 }}>
-            {upcomingAudits.slice(0, 4).map(audit => (
-              <AuditRow key={audit.id} audit={audit} navigate={navigate} />
+          <div className="card-body" style={{ paddingTop: 0 }}>
+            {upcomingAudits.slice(0, 4).map(a => (
+              <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--border-light)' }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: a.priority === 'Critical' ? '#FEF2F2' : a.priority === 'High' ? '#FFF7ED' : '#FFFBEB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Calendar size={16} color={a.priority === 'Critical' ? '#EF4444' : a.priority === 'High' ? '#F97316' : '#F59E0B'} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.building}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{a.date} · {a.auditor}</div>
+                </div>
+                <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: a.priority === 'Critical' ? '#FEF2F2' : '#FFF7ED', color: a.priority === 'Critical' ? '#EF4444' : '#F97316' }}>{a.priority}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Role: SUPPLIER ────────────────────────────────────────────────────────────
+function SupplierDash({ nav, user }) {
+  const sup = suppliers.find(s => s.id === user.supplierId) || suppliers[0];
+  const analytics = supplierAnalytics[sup?.id] || supplierAnalytics['SUP-001'];
+  const myContracts = contracts.filter(c => c.supplierId === sup?.id);
+  const activeC  = myContracts.filter(c => c.status === 'Active').length;
+  const expiringC = myContracts.filter(c => c.status === 'Expiring').length;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+      <div className="animate-up" style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+        <div style={{ width: 56, height: 56, borderRadius: 14, background: '#F3E8FF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>🏭</div>
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>{sup?.name}</h1>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Supplier Dashboard · {sup?.districts?.join(', ')}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-4">
+        <KpiCard label="Buildings Covered"     value={sup?.buildingsCovered || 0}    icon={Building2}  iconBg="#DFF3E8" iconColor="#1F6F50" accentColor="#1F6F50" />
+        <KpiCard label="Extinguishers Supplied" value={sup?.extinguishersSupplied || 0} icon={Flame}    iconBg="#FEF3C7" iconColor="#B45309" accentColor="#F59E0B" />
+        <KpiCard label="Active Contracts"      value={activeC}                        icon={FileText}   iconBg="#E0E7FF" iconColor="#4338CA" accentColor="#4338CA" />
+        <KpiCard label="Expiring Contracts"    value={expiringC}                      icon={AlertTriangle} iconBg="#FEF3C7" iconColor="#B45309" accentColor="#F59E0B" />
+      </div>
+
+      {/* Performance Score */}
+      <div className="card animate-up stagger-2">
+        <div className="card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="card-title">Performance Score</div>
+          <span style={{ fontSize: 28, fontWeight: 800, color: '#1F6F50' }}>{sup?.performanceScore}%</span>
+        </div>
+        <div className="card-body">
+          <div className="progress"><div className="progress-fill success" style={{ width: `${sup?.performanceScore}%` }} /></div>
+          <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {sup?.certifications?.map(c => (
+              <span key={c} style={{ fontSize: 11.5, background: 'var(--color-primary-ultra)', color: 'var(--color-primary)', padding: '3px 10px', borderRadius: 20, fontWeight: 600 }}>{c}</span>
             ))}
           </div>
         </div>
       </div>
 
-      {/* ── AI ASSISTANT PROMO ── */}
-      <div className="animate-up" style={{ animationDelay: '0.3s' }}>
-        <div style={{
-          background: 'linear-gradient(135deg, #1A3828 0%, #1F6F50 50%, #2D8A65 100%)',
-          borderRadius: 'var(--radius-xl)',
-          padding: '40px 48px',
-          display: 'flex', alignItems: 'center', gap: 48,
-          position: 'relative', overflow: 'hidden'
-        }}>
-          {/* Background decoration */}
-          <div style={{ position: 'absolute', top: -40, right: 40, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
-          <div style={{ position: 'absolute', bottom: -60, right: 180, width: 150, height: 150, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
-
-          {/* AI Robot Illustration */}
-          <div style={{
-            width: 100, height: 100, borderRadius: 24,
-            background: 'rgba(255,255,255,0.12)',
-            border: '1px solid rgba(255,255,255,0.15)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            backdropFilter: 'blur(10px)'
-          }}>
-            <Bot size={48} color="rgba(255,255,255,0.9)" strokeWidth={1.5} />
+      {/* District-wise Analytics */}
+      <div className="dashboard-grid-half">
+        <div className="card">
+          <div className="card-header"><div className="card-title">📍 District-wise Supply</div></div>
+          <div className="card-body" style={{ height: 250 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={analytics.districtWise} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
+                <XAxis dataKey="district" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+                <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+                <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
+                <Bar dataKey="extinguishers" fill="var(--color-primary)" name="Extinguishers" radius={[4,4,0,0]} />
+                <Bar dataKey="buildings" fill="#3B82F6" name="Buildings" radius={[4,4,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
+        </div>
+        <div className="card">
+          <div className="card-header"><div className="card-title">📋 Recent Contracts</div></div>
+          <div className="card-body" style={{ paddingTop: 0 }}>
+            {myContracts.slice(0, 5).map(c => (
+              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--border-light)' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.buildingName}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>Expires: {c.endDate}</div>
+                </div>
+                <span className={`badge ${c.status === 'Active' ? 'badge-success' : c.status === 'Expiring' ? 'badge-warning' : 'badge-danger'}`}>{c.status}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-          {/* Text */}
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-              <Sparkles size={16} color="#4ADE80" />
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#4ADE80', letterSpacing: 1, textTransform: 'uppercase' }}>AI Powered</span>
+// ── Role: BUILDING OWNER ──────────────────────────────────────────────────────
+function BuildingOwnerDash({ nav, user }) {
+  const myBuilding = buildings.find(b => b.id === user.buildingId) || buildings[0];
+  const myExts     = extinguishers.filter(e => e.buildingId === myBuilding?.id);
+  const myAudits   = audits.filter(a => a.buildingId === myBuilding?.id);
+  const myUpcoming = upcomingAudits.filter(a => a.buildingId === myBuilding?.id);
+  const myAlerts   = alerts.filter(a => a.building === myBuilding?.name);
+
+  const compScore = myBuilding?.complianceScore || 0;
+  const scoreColor = compScore >= 80 ? 'var(--status-success)' : compScore >= 60 ? '#F59E0B' : 'var(--status-danger)';
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+      {/* Building Header */}
+      <div className="card animate-up" style={{ background: 'linear-gradient(135deg, var(--color-primary) 0%, #156040 100%)', border: 'none' }}>
+        <div className="card-body" style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', fontWeight: 600, marginBottom: 4 }}>YOUR BUILDING</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: 'white', letterSpacing: '-0.5px' }}>{myBuilding?.name}</div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <MapPin size={13} /> {myBuilding?.district}, {myBuilding?.state} · {myBuilding?.floors} Floors · {myBuilding?.type}
             </div>
-            <h2 style={{ fontSize: 24, fontWeight: 800, color: 'white', letterSpacing: '-0.5px', lineHeight: 1.2, marginBottom: 10 }}>
-              Need insights? Ask FireGuard AI
-            </h2>
-            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', lineHeight: 1.6, marginBottom: 20, maxWidth: 480 }}>
-              Get instant answers about building compliance, expiring equipment, audit readiness, and risk assessment — powered by intelligent analysis.
-            </p>
-            {/* Suggested prompts */}
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
-              {[
-                'Which buildings have high risk?',
-                'Show expired extinguishers',
-                'Generate compliance report',
-                'Audits due this week?',
-              ].map((prompt, i) => (
-                <button
-                  key={i}
-                  onClick={() => navigate('/ai-assistant')}
-                  style={{
-                    padding: '6px 14px', borderRadius: 99,
-                    background: 'rgba(255,255,255,0.10)',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    color: 'rgba(255,255,255,0.85)', fontSize: 12.5, fontWeight: 500,
-                    cursor: 'pointer', transition: 'all 0.15s',
-                    backdropFilter: 'blur(4px)'
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.18)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)'; }}
-                >
-                  {prompt}
-                </button>
-              ))}
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 48, fontWeight: 900, color: 'white', lineHeight: 1 }}>{compScore}%</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>Compliance Score</div>
+            <div style={{ width: 120, margin: '8px auto 0', height: 6, background: 'rgba(255,255,255,0.2)', borderRadius: 20, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${compScore}%`, background: 'rgba(255,255,255,0.9)', borderRadius: 20, transition: 'width 0.8s' }} />
             </div>
-            <button
-              className="btn btn-lg"
-              onClick={() => navigate('/ai-assistant')}
-              style={{ background: 'white', color: '#1F6F50', fontWeight: 700, borderRadius: 10, border: 'none' }}
-            >
-              <Bot size={18} /> Ask AI Assistant <ArrowRight size={15} />
-            </button>
           </div>
         </div>
       </div>
 
-      {/* ── FOOTER PLATFORM BENEFITS ── */}
-      <div className="animate-up" style={{ animationDelay: '0.35s' }}>
-        <div style={{
-          background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)',
-          padding: '28px 32px',
-          display: 'flex', flexWrap: 'wrap', gap: 24
-        }}>
-          {[
-            { icon: '🤖', title: 'AI Powered',              sub: 'Intelligent risk assessment & predictions' },
-            { icon: '🔔', title: 'Real-time Alerts',        sub: 'Instant notifications for critical issues' },
-            { icon: '✅', title: 'Compliance Tracking',     sub: 'Automated audit trails & reporting' },
-            { icon: '🏢', title: 'Multi-location',          sub: 'Manage unlimited buildings from one view' },
-          ].map((item, i) => (
-            <div key={i} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', flex: '1 1 200px' }}>
-              <div style={{ fontSize: 26, flexShrink: 0 }}>{item.icon}</div>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{item.title}</div>
-                <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{item.sub}</div>
+      <div className="grid grid-4">
+        <KpiCard label="Total Extinguishers" value={myExts.length}                              icon={Flame}         iconBg="#FEF3C7" iconColor="#B45309" accentColor="#F59E0B" />
+        <KpiCard label="Expired"             value={myExts.filter(e => e.status==='Expired').length} icon={AlertTriangle} iconBg="#FEF2F2" iconColor="#EF4444" accentColor="#EF4444" />
+        <KpiCard label="Upcoming Audits"     value={myUpcoming.length}                          icon={ClipboardCheck} iconBg="#E0E7FF" iconColor="#4338CA" accentColor="#4338CA" />
+        <KpiCard label="Active Alerts"       value={myAlerts.filter(a=>!a.read).length}        icon={ShieldCheck}   iconBg="var(--color-primary-ultra)" iconColor="var(--color-primary)" />
+      </div>
+
+      {/* AI Recommendations */}
+      <div className="card animate-up stagger-3">
+        <div className="card-header">
+          <div>
+            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="ai-pulse-dot" /> AI Safety Recommendations
+            </div>
+            <div className="card-subtitle">Based on your compliance data</div>
+          </div>
+          <button onClick={() => nav('/ai-assistant')} className="btn btn-primary btn-sm">Ask AI</button>
+        </div>
+        <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {myExts.filter(e => e.status !== 'Active').slice(0, 3).map((e, i) => (
+            <div key={e.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: 12, background: 'var(--bg-subtle)', borderRadius: 'var(--radius-sm)' }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: e.status === 'Expired' ? '#EF4444' : '#F59E0B', marginTop: 6, flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{e.status === 'Expired' ? '🚨' : '⚠️'} Extinguisher {e.id} — Floor {e.floor}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{e.status} · {e.type} · {e.location}</div>
               </div>
+              <span className={`badge ${e.status === 'Expired' ? 'badge-danger' : 'badge-warning'}`}>{e.status}</span>
+            </div>
+          ))}
+          {myExts.filter(e => e.status !== 'Active').length === 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 16, background: 'var(--status-success-bg)', borderRadius: 'var(--radius-sm)' }}>
+              <CheckCircle2 size={20} color="var(--status-success)" />
+              <span style={{ fontSize: 13, color: 'var(--status-success-text)', fontWeight: 600 }}>All extinguishers are in good standing! ✅</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Audit History */}
+      <div className="card">
+        <div className="card-header"><SectionHeader title="Recent Audits" action="View All" onAction={() => nav('/audits')} /></div>
+        <div className="card-body" style={{ paddingTop: 0 }}>
+          {myAudits.slice(0, 3).map(a => (
+            <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--border-light)' }}>
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: a.status === 'Completed' ? '#F0FDF4' : '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {a.status === 'Completed' ? <CheckCircle2 size={16} color="#22C55E" /> : <Clock size={16} color="#EF4444" />}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{a.id} · {a.date}</div>
+                <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>Auditor: {a.auditor}</div>
+              </div>
+              <span style={{ fontSize: 16, fontWeight: 800, color: a.complianceScore >= 80 ? '#22C55E' : a.complianceScore >= 60 ? '#F59E0B' : '#EF4444' }}>{a.complianceScore}%</span>
             </div>
           ))}
         </div>
       </div>
-
     </div>
   );
+}
+
+// ── Role: AUDITOR ─────────────────────────────────────────────────────────────
+function AuditorDash({ nav, user }) {
+  const myAudits   = audits.filter(a => a.auditorId === user.id);
+  const myUpcoming = upcomingAudits.filter(a => a.auditorId === user.id);
+  const completed  = myAudits.filter(a => a.status === 'Completed').length;
+  const actionReq  = myAudits.filter(a => a.status === 'Action Required' || a.status === 'Overdue').length;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+      <div className="animate-up">
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)' }}>Welcome, {user.name} 📋</h1>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>Your assigned audits & compliance reports</p>
+      </div>
+
+      <div className="grid grid-4">
+        <KpiCard label="Scheduled Audits"   value={myUpcoming.length}  icon={Calendar}      iconBg="#E0E7FF" iconColor="#4338CA" accentColor="#4338CA" />
+        <KpiCard label="Completed Audits"   value={completed}          icon={CheckCircle2}  iconBg="#F0FDF4" iconColor="#15803D" accentColor="#22C55E" />
+        <KpiCard label="Action Required"    value={actionReq}          icon={AlertTriangle} iconBg="#FEF2F2" iconColor="#EF4444" accentColor="#EF4444" />
+        <KpiCard label="Avg Compliance"     value={`${myAudits.length ? Math.round(myAudits.reduce((s,a)=>s+a.complianceScore,0)/myAudits.length) : 0}%`} icon={ShieldCheck} iconBg="var(--color-primary-ultra)" iconColor="var(--color-primary)" />
+      </div>
+
+      <div className="dashboard-grid-half">
+        <div className="card">
+          <div className="card-header"><SectionHeader title="Upcoming Audits" action="View All" onAction={() => nav('/audits')} /></div>
+          <div className="card-body" style={{ paddingTop: 0 }}>
+            {myUpcoming.length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No upcoming audits assigned.</p> :
+            myUpcoming.map(a => (
+              <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--border-light)' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{a.building}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{a.date}</div>
+                </div>
+                <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: a.priority === 'Critical' ? '#FEF2F2' : '#FFF7ED', color: a.priority === 'Critical' ? '#EF4444' : '#F97316' }}>{a.priority}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-header"><SectionHeader title="Recent Audit Reports" action="View All" onAction={() => nav('/audits')} /></div>
+          <div className="card-body" style={{ paddingTop: 0 }}>
+            {myAudits.slice(0, 4).map(a => (
+              <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--border-light)' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.building}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{a.date} · {a.status}</div>
+                </div>
+                <span style={{ fontSize: 15, fontWeight: 800, color: a.complianceScore >= 80 ? '#22C55E' : a.complianceScore >= 60 ? '#F59E0B' : '#EF4444' }}>{a.complianceScore}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Role: ANALYST ─────────────────────────────────────────────────────────────
+function AnalystDash({ nav, user }) {
+  const myBuildings = buildings.filter(b => user.buildings?.includes(b.id));
+  const avgCompliance = buildings.length ? Math.round(buildings.reduce((s,b) => s+b.complianceScore,0)/buildings.length) : 0;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+      <div className="animate-up" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)' }}>Analytics Dashboard 📊</h1>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>Risk insights & compliance trends</p>
+        </div>
+        <button className="btn btn-primary btn-sm" onClick={() => nav('/ai-assistant')} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Zap size={14} /> AI Assistant
+        </button>
+      </div>
+
+      <div className="grid grid-4">
+        <KpiCard label="Avg Compliance"  value={`${avgCompliance}%`}        icon={ShieldCheck}  iconBg="var(--color-primary-ultra)" iconColor="var(--color-primary)" />
+        <KpiCard label="High Risk"       value={buildings.filter(b=>['Critical','High'].includes(b.riskLevel)).length} icon={AlertTriangle} iconBg="#FEF2F2" iconColor="#EF4444" accentColor="#EF4444" />
+        <KpiCard label="Assigned Bldgs"  value={myBuildings.length || 'All'} icon={Building2}    iconBg="#E0F2FE" iconColor="#0369A1" />
+        <KpiCard label="AI Risk Reports" value={3}                           icon={BrainCircuit} iconBg="#F3E8FF" iconColor="#7C3AED" accentColor="#7C3AED" onClick={() => nav('/ai-risk')} />
+      </div>
+
+      {/* Compliance Trend Chart */}
+      <div className="card animate-up stagger-2">
+        <div className="card-header">
+          <div className="card-title">📈 Compliance Trend — Full Year</div>
+          <button className="btn btn-secondary btn-sm" onClick={() => nav('/reports')}>Export Report</button>
+        </div>
+        <div className="card-body" style={{ height: 280 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={complianceTrend} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
+              <defs>
+                <linearGradient id="cg2" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#1F6F50" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#1F6F50" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+              <YAxis domain={[60, 100]} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+              <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
+              <Legend />
+              <Area type="monotone" dataKey="score"  stroke="var(--color-primary)" strokeWidth={2} fill="url(#cg2)" name="Compliance %" />
+              <Area type="monotone" dataKey="target" stroke="#F59E0B" strokeWidth={1.5} strokeDasharray="4 4" fill="none" name="Target" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div>
+        <SectionHeader title="Quick Actions" />
+        <div className="grid grid-4">
+          {[
+            { label: 'AI Risk Analysis', sub: 'View risk scores', icon: BrainCircuit, path: '/ai-risk', color: '#7C3AED', bg: '#F3E8FF' },
+            { label: 'Generate Report',  sub: 'Export compliance', icon: FileText,    path: '/reports', color: '#1F6F50', bg: '#DFF3E8' },
+            { label: 'View Buildings',   sub: 'Portfolio overview', icon: Building2,  path: '/buildings', color: '#0369A1', bg: '#E0F2FE' },
+            { label: 'AI Chat',          sub: 'Ask anything',     icon: BrainCircuit, path: '/ai-assistant', color: '#B45309', bg: '#FEF3C7' },
+          ].map(a => (
+            <div key={a.path} className="quick-action" onClick={() => nav(a.path)}>
+              <div className="quick-action-icon" style={{ background: a.bg, color: a.color }}><a.icon size={22} /></div>
+              <div className="quick-action-label">{a.label}</div>
+              <div className="quick-action-sub">{a.sub}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── COMPANY ADMIN ─────────────────────────────────────────────────────────────
+function CompanyAdminDash({ nav, user }) {
+  const scoped = buildings.filter(b => b.companyId === user.companyId);
+  const scopedExts = extinguishers.filter(e => e.companyId === user.companyId);
+  const avgScore = scoped.length ? Math.round(scoped.reduce((s,b)=>s+b.complianceScore,0)/scoped.length) : 0;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+      <div className="animate-up">
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)' }}>Welcome back, {user.name.split(' ')[0]} 👋</h1>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>Managing {user.companyName} · {scoped.length} buildings</p>
+      </div>
+      <div className="grid grid-4">
+        <KpiCard label="Buildings"         value={scoped.length}             icon={Building2}      iconBg="var(--color-primary-ultra)" iconColor="var(--color-primary)" />
+        <KpiCard label="Extinguishers"     value={scopedExts.length}         icon={Flame}          iconBg="#FEF3C7" iconColor="#B45309" accentColor="#F59E0B" />
+        <KpiCard label="Avg Compliance"   value={`${avgScore}%`}            icon={ShieldCheck}    iconBg="#F0FDF4" iconColor="#15803D" accentColor="#22C55E" />
+        <KpiCard label="Active Alerts"     value={alerts.filter(a=>a.companyId===user.companyId&&!a.read).length} icon={AlertTriangle} iconBg="#FEF2F2" iconColor="#EF4444" accentColor="#EF4444" />
+      </div>
+      <div className="dashboard-grid-map">
+        <div className="card">
+          <div className="card-header"><div><div className="card-title">🗺️ Tamil Nadu Risk Map</div><div className="card-subtitle">Your buildings by district</div></div></div>
+          <div className="card-body"><DistrictRiskMap scoped={scoped} /></div>
+        </div>
+        <div className="card">
+          <div className="card-header"><div className="card-title">📊 Compliance Trend</div></div>
+          <div className="card-body" style={{ height: 230 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={complianceTrend.slice(-6)}>
+                <defs><linearGradient id="cg3" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#1F6F50" stopOpacity={0.2} /><stop offset="95%" stopColor="#1F6F50" stopOpacity={0} /></linearGradient></defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+                <YAxis domain={[60, 100]} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+                <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
+                <Area type="monotone" dataKey="score" stroke="var(--color-primary)" strokeWidth={2} fill="url(#cg3)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── MAIN EXPORT ───────────────────────────────────────────────────────────────
+export default function Dashboard() {
+  const { user, isSuperAdmin, isSupplier, isBuildingOwner, isAuditor, isAnalyst } = useAuth();
+  const navigate = useNavigate();
+
+  if (!user) return null;
+
+  if (isSuperAdmin)    return <SuperAdminDash   nav={navigate} user={user} />;
+  if (isSupplier)      return <SupplierDash      nav={navigate} user={user} />;
+  if (isBuildingOwner) return <BuildingOwnerDash nav={navigate} user={user} />;
+  if (isAuditor)       return <AuditorDash       nav={navigate} user={user} />;
+  if (isAnalyst)       return <AnalystDash        nav={navigate} user={user} />;
+  return <CompanyAdminDash nav={navigate} user={user} />;
 }

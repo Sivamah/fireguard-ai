@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Users, Plus, Shield, Eye, Edit, Trash2, CheckCircle, X, Check, Mail, User as UserIcon } from 'lucide-react';
 import { users as initialUsers, permissions } from '../data/mockData';
+import { useAuth } from '../context/AuthContext';
 
 const RoleBadge = ({ role }) => {
   const configs = {
-    Admin: { cls: 'badge-danger', label: 'Admin' },
+    'Super Admin': { cls: 'badge-danger', label: 'Super Admin' },
+    'Company Admin': { cls: 'badge-danger', label: 'Company Admin' },
     Auditor: { cls: 'badge-primary', label: 'Auditor' },
     Analyst: { cls: 'badge-info', label: 'Analyst' },
     Viewer: { cls: 'badge-neutral', label: 'Viewer' },
@@ -14,7 +16,8 @@ const RoleBadge = ({ role }) => {
 };
 
 const roleDescriptions = {
-  Admin: { color: '#EF4444', bg: '#FEF2F2', description: 'Full system access. Can manage all buildings, users, and settings.', icon: '👑' },
+  'Super Admin': { color: '#EF4444', bg: '#FEF2F2', description: 'Platform-wide access. Can manage all companies, subscriptions, and system settings.', icon: '🌍' },
+  'Company Admin': { color: '#EF4444', bg: '#FEF2F2', description: 'Full access to their company. Can manage all buildings, users, and settings within the company.', icon: '👑' },
   Auditor: { color: '#3B82F6', bg: '#EFF6FF', description: 'Can create and complete audits for assigned buildings.', icon: '🔍' },
   Analyst: { color: '#8B5CF6', bg: '#F5F3FF', description: 'Can view data, run AI analysis, and generate reports.', icon: '📊' },
   Viewer: { color: '#6B7280', bg: '#F9FAFB', description: 'Read-only access to assigned building data.', icon: '👁️' },
@@ -24,7 +27,18 @@ const EMPTY_INVITE = { name: '', email: '', role: 'Viewer', buildings: '' };
 const EMPTY_EDIT = { name: '', email: '', role: 'Viewer', buildings: '', status: 'Active' };
 
 export default function UserPermissions() {
-  const [users, setUsers] = useState(initialUsers);
+  const { user: currentUser, isSuperAdmin } = useAuth();
+  
+  const initialScopedUsers = React.useMemo(() => {
+    return isSuperAdmin ? initialUsers : initialUsers.filter(u => u.companyId === currentUser?.companyId);
+  }, [isSuperAdmin, currentUser]);
+
+  const [users, setUsers] = useState(initialScopedUsers);
+  
+  React.useEffect(() => {
+    setUsers(initialScopedUsers);
+  }, [initialScopedUsers]);
+
   const [tab, setTab] = useState('users');
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteForm, setInviteForm] = useState(EMPTY_INVITE);
@@ -42,6 +56,7 @@ export default function UserPermissions() {
       status: 'Active',
       lastLogin: 'Never',
       buildings: inviteForm.buildings || 'None assigned',
+      companyId: isSuperAdmin && inviteForm.role === 'Super Admin' ? null : currentUser?.companyId,
     };
     setUsers(prev => [...prev, newUser]);
     setInviteForm(EMPTY_INVITE);
