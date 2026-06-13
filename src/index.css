@@ -891,20 +891,32 @@ body {
   height: 64px; background: var(--bg-card);
   border-top: 1px solid var(--border); z-index: 200;
   padding-bottom: env(safe-area-inset-bottom);
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.06);
 }
 
 .bottom-nav-item {
   flex: 1; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 4px;
+  align-items: center; justify-content: center; gap: 3px;
   color: var(--text-muted); cursor: pointer; transition: all 0.2s var(--ease);
+  min-height: 44px; /* WCAG touch target */
+  -webkit-tap-highlight-color: transparent;
 }
 
 .bottom-nav-item.active { color: var(--color-primary); }
-.bottom-nav-item span { font-size: 10px; font-weight: 600; }
+.bottom-nav-item.active svg { filter: drop-shadow(0 0 4px rgba(31,111,80,0.4)); }
+[data-theme="dark"] .bottom-nav-item.active svg { filter: drop-shadow(0 0 4px rgba(46,204,113,0.5)); }
+.bottom-nav-item span { font-size: 10px; font-weight: 600; letter-spacing: 0.2px; }
 
 .mobile-overlay {
   position: fixed; inset: 0; z-index: 150;
   background: rgba(0,0,0,0.4); backdrop-filter: blur(2px);
+  animation: fadeIn 0.2s;
+}
+
+/* Separate overlay for mobile more drawer (higher z-index) */
+.mobile-more-overlay {
+  position: fixed; inset: 0; z-index: 240;
+  background: rgba(0,0,0,0.5); backdrop-filter: blur(3px);
   animation: fadeIn 0.2s;
 }
 
@@ -913,9 +925,13 @@ body {
   background: var(--bg-card);
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   z-index: 250; transform: translateY(100%);
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.35s cubic-bezier(0.34, 1.2, 0.64, 1);
   padding-bottom: env(safe-area-inset-bottom);
   border: 1px solid var(--border);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-xl);
 }
 
 .mobile-more-menu.open { transform: translateY(0); }
@@ -925,6 +941,7 @@ body {
   padding: 14px 16px; border-radius: var(--radius-md);
   color: var(--text-primary); font-weight: 500;
   font-size: 14.5px; cursor: pointer;
+  min-height: 56px; /* Touch target */
 }
 
 .mobile-more-item:hover, .mobile-more-item.active {
@@ -959,10 +976,18 @@ body {
 }
 
 /* ============================================================
+   RESPONSIVE GRID HELPERS
+   ============================================================ */
+/* Used in Dashboard for role-specific layouts */
+.grid-2-mobile { /* stays 3-col on desktop */ }
+.grid-1-mobile { /* stays 3-col on desktop */ }
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 @media (max-width: 1200px) {
   .grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .grid-5 { grid-template-columns: repeat(3, 1fr); }
   .page-content { padding: 24px; }
 }
 
@@ -970,17 +995,33 @@ body {
   .bottom-nav { display: flex; }
   .sidebar { display: none; }
   .topbar { left: 0; padding: 0 16px; }
+  .main-content { margin-left: 0; }
   .page-content { margin-left: 0; padding: 16px; padding-bottom: 80px; }
   .grid-3 { grid-template-columns: repeat(2, 1fr); }
+  .grid-5 { grid-template-columns: repeat(2, 1fr); }
   .dashboard-grid-map, .dashboard-grid-chart, .dashboard-grid-half { grid-template-columns: 1fr; }
+  /* Replace table overflow with single-column on tablet */
+  .table-wrap { border-radius: var(--radius-md); }
 }
 
 @media (max-width: 640px) {
-  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
-  .page-content { padding: 12px; padding-bottom: 80px; }
+  .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr; }
+  .grid-2-mobile { grid-template-columns: 1fr 1fr !important; }
+  .grid-1-mobile { grid-template-columns: 1fr !important; }
+  .page-content { padding: 12px; padding-bottom: 84px; }
   .login-page { padding: 16px; }
   .login-card { padding: 32px 20px; }
   .form-row { grid-template-columns: 1fr; }
+  /* Hide table on mobile, show mobile-card instead */
+  .mobile-hide { display: none !important; }
+  .mobile-show { display: block !important; }
+  /* Larger modal padding */
+  .modal { margin: 12px; max-height: calc(100vh - 100px); }
+  .modal-body { padding: 16px 20px; }
+  .modal-footer { padding: 12px 20px 16px; }
+  /* KPI cards mobile */
+  .kpi-card { padding: 16px; }
+  .kpi-value { font-size: 28px; }
 }
 
 /* Visibility Utilities */

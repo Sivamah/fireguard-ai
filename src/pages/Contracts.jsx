@@ -142,7 +142,7 @@ export default function Contracts() {
           { label: 'Expiring', val: stats.expiring, color: '#B45309', bg: '#FEF3C7', icon: Clock },
           { label: 'Expired', val: stats.expired, color: '#DC2626', bg: '#FEF2F2', icon: AlertTriangle },
         ].map(s => (
-          <div key={s.label} style={{ background: s.bg, border: `1px solid ${s.color}20`, borderRadius: 'var(--radius-md)', padding: '16px 20px', display: 'flex', align: 'center', gap: 14 }}
+          <div key={s.label}
             onClick={() => setStatusFilter(s.label === 'Total' ? 'All' : s.label)}
             style={{ background: s.bg, border: `1px solid ${s.color}20`, borderRadius: 'var(--radius-md)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', transition: 'all 0.15s' }}>
             <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

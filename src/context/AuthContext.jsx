@@ -82,14 +82,14 @@ export function AuthProvider({ children }) {
   }, [sessionExpiry]);
 
   // ── Password Login (primary demo flow) ──
-  const login = useCallback(async (email, password) => {
+  const login = useCallback(async (email, password, rememberMe = false) => {
     await new Promise(r => setTimeout(r, 700));
     const account = DEMO_USERS.find(
       a => a.email.toLowerCase() === email.toLowerCase() && a.password === password
     );
     if (!account) throw new Error('Invalid email or password. Please try again.');
     if (account.status !== 'Active') throw new Error('Your account is inactive. Please contact support.');
-    return _createSession(account);
+    return _createSession(account, rememberMe);
   }, []);
 
   // ── Send OTP ──
@@ -110,14 +110,16 @@ export function AuthProvider({ children }) {
     return _createSession(account);
   }, []);
 
-  function _createSession(account) {
+  function _createSession(account, rememberMe = false) {
     // Strip password before storing
     // eslint-disable-next-line no-unused-vars
     const { password: _pw, ...safeUser } = account;
     const token   = generateToken(safeUser);
     const payload = parseToken(token);
+    const storage = rememberMe ? localStorage : sessionStorage;
+    // Always write to localStorage for session restore; sessionStorage for non-remember
     localStorage.setItem(TOKEN_KEY,   token);
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ user: safeUser }));
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ user: safeUser, rememberMe }));
     setUser(safeUser);
     setSessionExpiry(payload.exp);
     setSessionWarning(false);
@@ -128,6 +130,7 @@ export function AuthProvider({ children }) {
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(SESSION_KEY);
+    sessionStorage.clear();
     setUser(null);
     setSessionExpiry(null);
     setSessionWarning(false);
@@ -168,13 +171,12 @@ export function AuthProvider({ children }) {
     logout,
     extendSession,
     updateProfile,
-    // Role Helpers
+    // Role Helpers (4 core roles — Analyst removed)
     isSuperAdmin:    user?.role === 'Super Admin',
     isCompanyAdmin:  user?.role === 'Company Admin',
     isSupplier:      user?.role === 'Supplier',
     isBuildingOwner: user?.role === 'Building Owner',
     isAuditor:       user?.role === 'Auditor',
-    isAnalyst:       user?.role === 'Analyst',
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,6 +1,6 @@
 // ============================================================
 // FireGuard AI — Mock Data (Multi-Tenant SaaS)
-// Roles: Super Admin, Supplier, Building Owner, Auditor, Analyst
+// Roles: Super Admin, Supplier, Building Owner, Auditor
 // ============================================================
 
 export const companies = [
@@ -228,7 +228,7 @@ export const complianceTrend = [
   { month: 'Dec', score: 91, target: 85 },
 ];
 
-// ─── USERS (5 Demo Accounts + supporting cast) ──────────────────────────────
+// ─── USERS (4 Demo Accounts + supporting cast) ──────────────────────────────
 export const users = [
   // === DEMO ACCOUNTS ===
   {
@@ -258,12 +258,6 @@ export const users = [
     buildings: 'BLD-001,BLD-002,BLD-005', companyId: null, companyName: 'FireGuard AI (Audit)',
     phone: '+91 98423 00006', department: 'Compliance',
   },
-  {
-    id: 'USR-004', name: 'Analyst User', email: 'analyst@fireguard.ai', password: 'demo123',
-    role: 'Analyst', status: 'Active', lastLogin: '2026-06-08',
-    buildings: 'BLD-003', companyId: 'COMP-001', companyName: 'Acme Corp',
-    phone: '+91 98424 00004', department: 'Analytics',
-  },
   // === SUPPORTING USERS ===
   {
     id: 'USR-005', name: 'Arjun Kapoor', email: 'arjun@fireguard.ai', password: 'admin123',
@@ -291,25 +285,26 @@ export const users = [
   },
 ];
 
+// Updated permissions — 4 core roles (Analyst removed)
 export const permissions = {
-  roles: ['Super Admin', 'Supplier', 'Building Owner', 'Auditor', 'Analyst', 'Company Admin'],
+  roles: ['Super Admin', 'Supplier', 'Building Owner', 'Auditor'],
   modules: [
-    { name: 'Dashboard',           permissions: [true,  true,  true,  true,  true,  true ] },
-    { name: 'View Buildings',      permissions: [true,  true,  true,  true,  true,  true ] },
-    { name: 'Manage Buildings',    permissions: [true,  false, false, false, false, true ] },
-    { name: 'View Extinguishers',  permissions: [true,  true,  true,  true,  true,  true ] },
-    { name: 'Manage Extinguishers',permissions: [true,  false, false, false, false, true ] },
-    { name: 'Create Audits',       permissions: [true,  false, false, true,  false, true ] },
-    { name: 'View Audits',         permissions: [true,  false, true,  true,  true,  true ] },
-    { name: 'AI Risk Analysis',    permissions: [true,  false, false, false, true,  true ] },
-    { name: 'AI Assistant',        permissions: [true,  false, false, false, true,  true ] },
-    { name: 'Generate Reports',    permissions: [true,  true,  false, true,  true,  true ] },
-    { name: 'Supplier Management', permissions: [true,  true,  false, false, false, false] },
-    { name: 'Contract Management', permissions: [true,  true,  false, false, false, true ] },
-    { name: 'Fire Incidents',      permissions: [true,  true,  true,  true,  false, true ] },
-    { name: 'Manage Company Users',permissions: [true,  false, false, false, false, true ] },
-    { name: 'Manage All Companies',permissions: [true,  false, false, false, false, false] },
-    { name: 'System Analytics',    permissions: [true,  false, false, false, false, false] },
+    { name: 'Dashboard',            permissions: [true,  true,  true,  true ] },
+    { name: 'View Buildings',       permissions: [true,  true,  true,  true ] },
+    { name: 'Manage Buildings',     permissions: [true,  false, false, false] },
+    { name: 'View Extinguishers',   permissions: [true,  true,  true,  true ] },
+    { name: 'Manage Extinguishers', permissions: [true,  false, false, false] },
+    { name: 'Create Audits',        permissions: [true,  false, false, true ] },
+    { name: 'View Audits',          permissions: [true,  false, true,  true ] },
+    { name: 'AI Risk Analysis',     permissions: [true,  false, false, false] },
+    { name: 'AI Assistant',         permissions: [true,  false, true,  true ] },
+    { name: 'Generate Reports',     permissions: [true,  true,  false, true ] },
+    { name: 'Supplier Management',  permissions: [true,  true,  false, false] },
+    { name: 'Contract Management',  permissions: [true,  true,  false, false] },
+    { name: 'Fire Incidents',       permissions: [true,  true,  true,  true ] },
+    { name: 'Manage Company Users', permissions: [true,  false, false, false] },
+    { name: 'Manage All Companies', permissions: [true,  false, false, false] },
+    { name: 'System Analytics',     permissions: [true,  false, false, false] },
   ]
 };
 

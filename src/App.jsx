@@ -21,14 +21,21 @@ const Profile        = React.lazy(() => import('./pages/Profile'));
 const Login          = React.lazy(() => import('./pages/Login'));
 const ForgotPassword = React.lazy(() => import('./pages/ForgotPassword'));
 const Unauthorized   = React.lazy(() => import('./pages/Unauthorized'));
-// New pages
+// Additional pages
 const Suppliers      = React.lazy(() => import('./pages/Suppliers'));
 const Contracts      = React.lazy(() => import('./pages/Contracts'));
 const FireIncidents  = React.lazy(() => import('./pages/FireIncidents'));
 
 import './index.css';
 
-const ALL_ROLES = ['Super Admin', 'Company Admin', 'Supplier', 'Building Owner', 'Auditor', 'Analyst'];
+// 4 Core roles — Analyst removed
+const ALL_ROLES = ['Super Admin', 'Company Admin', 'Supplier', 'Building Owner', 'Auditor'];
+const MGMT      = ['Super Admin', 'Company Admin'];
+const SUPP      = ['Super Admin', 'Company Admin', 'Supplier'];
+const INTEL     = ['Super Admin', 'Company Admin'];
+const AUDIT_ACCESS = ['Super Admin', 'Company Admin', 'Auditor', 'Building Owner'];
+// AI Assistant: Super Admin, Building Owner, Auditor (opened up from Analyst-only)
+const AI_ACCESS = ['Super Admin', 'Company Admin', 'Building Owner', 'Auditor'];
 
 function App() {
   return (
@@ -56,58 +63,58 @@ function App() {
                 <Route path="/profile"      element={<Profile />} />
                 <Route path="/about"        element={<About />} />
 
-                {/* Audits — most roles except Supplier/Building Owner (can view) */}
+                {/* Audits — auditors, building owners, admins */}
                 <Route path="/audits" element={
-                  <ProtectedRoute allowedRoles={['Super Admin', 'Company Admin', 'Auditor', 'Building Owner', 'Analyst']}>
+                  <ProtectedRoute allowedRoles={AUDIT_ACCESS}>
                     <Audits />
                   </ProtectedRoute>
                 } />
 
-                {/* Fire Incidents */}
+                {/* Fire Incidents — all except restricted */}
                 <Route path="/fire-incidents" element={
-                  <ProtectedRoute allowedRoles={['Super Admin', 'Company Admin', 'Supplier', 'Building Owner', 'Auditor']}>
+                  <ProtectedRoute allowedRoles={ALL_ROLES}>
                     <FireIncidents />
                   </ProtectedRoute>
                 } />
 
-                {/* AI Risk Analysis */}
+                {/* AI Risk Analysis — Super Admin only */}
                 <Route path="/ai-risk" element={
-                  <ProtectedRoute allowedRoles={['Super Admin', 'Company Admin', 'Analyst']}>
+                  <ProtectedRoute allowedRoles={INTEL}>
                     <AIRisk />
                   </ProtectedRoute>
                 } />
 
-                {/* AI Assistant */}
+                {/* AI Assistant — Super Admin, Building Owner, Auditor */}
                 <Route path="/ai-assistant" element={
-                  <ProtectedRoute allowedRoles={['Super Admin', 'Company Admin', 'Analyst']}>
+                  <ProtectedRoute allowedRoles={AI_ACCESS}>
                     <AIAssistant />
                   </ProtectedRoute>
                 } />
 
                 {/* Reports */}
                 <Route path="/reports" element={
-                  <ProtectedRoute allowedRoles={['Super Admin', 'Company Admin', 'Analyst', 'Auditor', 'Supplier']}>
+                  <ProtectedRoute allowedRoles={[...INTEL, 'Auditor', 'Supplier']}>
                     <Reports />
                   </ProtectedRoute>
                 } />
 
                 {/* Suppliers */}
                 <Route path="/suppliers" element={
-                  <ProtectedRoute allowedRoles={['Super Admin', 'Company Admin', 'Supplier']}>
+                  <ProtectedRoute allowedRoles={SUPP}>
                     <Suppliers />
                   </ProtectedRoute>
                 } />
 
                 {/* Contracts */}
                 <Route path="/contracts" element={
-                  <ProtectedRoute allowedRoles={['Super Admin', 'Company Admin', 'Supplier', 'Auditor']}>
+                  <ProtectedRoute allowedRoles={[...SUPP, 'Auditor']}>
                     <Contracts />
                   </ProtectedRoute>
                 } />
 
                 {/* User Permissions — admins only */}
                 <Route path="/users" element={
-                  <ProtectedRoute allowedRoles={['Super Admin', 'Company Admin']}>
+                  <ProtectedRoute allowedRoles={MGMT}>
                     <UserPermissions />
                   </ProtectedRoute>
                 } />

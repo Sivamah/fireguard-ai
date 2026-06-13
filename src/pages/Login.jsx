@@ -1,30 +1,37 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Flame, Mail, Lock, ShieldCheck, AlertCircle, ArrowRight, ArrowLeft, Eye, EyeOff, Zap } from 'lucide-react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { Flame, Mail, Lock, ShieldCheck, AlertCircle, ArrowRight, ArrowLeft, Eye, EyeOff, Info } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const DEMO_ACCOUNTS = [
-  { role: 'Super Admin',    name: 'Siva Kumar',          email: 'siva@fireguard.ai',     password: 'demo123', color: '#1F6F50', bg: '#DFF3E8', icon: '🛡️' },
-  { role: 'Supplier',       name: 'ABC Fire Safety',     email: 'supplier@abcfire.com',  password: 'demo123', color: '#7C3AED', bg: '#F3E8FF', icon: '🏭' },
-  { role: 'Building Owner', name: 'NGP Tech Park',       email: 'owner@ngp.com',         password: 'demo123', color: '#0369A1', bg: '#E0F2FE', icon: '🏢' },
-  { role: 'Auditor',        name: 'Priya Sharma',        email: 'auditor@fireguard.ai',  password: 'demo123', color: '#B45309', bg: '#FEF3C7', icon: '📋' },
-  { role: 'Analyst',        name: 'Analyst User',        email: 'analyst@fireguard.ai',  password: 'demo123', color: '#BE123C', bg: '#FFE4E6', icon: '📊' },
+// Demo credential hints — shown as info, NOT auto-filled
+const DEMO_HINTS = [
+  { role: 'Super Admin',    email: 'siva@fireguard.ai',     color: '#1F6F50', bg: '#DFF3E8' },
+  { role: 'Supplier',       email: 'supplier@abcfire.com',  color: '#7C3AED', bg: '#F3E8FF' },
+  { role: 'Building Owner', email: 'owner@ngp.com',         color: '#0369A1', bg: '#E0F2FE' },
+  { role: 'Auditor',        email: 'auditor@fireguard.ai',  color: '#B45309', bg: '#FEF3C7' },
 ];
 
 export default function Login() {
-  const { login, sendOtp, verifyOtp } = useAuth();
+  const { login, sendOtp, verifyOtp, isAuthenticated } = useAuth();
   const navigate  = useNavigate();
   const location  = useLocation();
   const from      = location.state?.from?.pathname || '/';
 
-  const [tab,     setTab]     = useState('password'); // 'password' | 'otp'
-  const [email,   setEmail]   = useState('');
-  const [password, setPassword] = useState('');
-  const [showPw,  setShowPw]  = useState(false);
-  const [otp,     setOtp]     = useState(['', '', '', '', '', '']);
-  const [otpStep, setOtpStep] = useState(1); // 1: email, 2: code
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState('');
+  // Redirect if already logged in
+  useEffect(() => {
+    if (isAuthenticated) navigate(from, { replace: true });
+  }, [isAuthenticated, navigate, from]);
+
+  const [tab,       setTab]       = useState('password'); // 'password' | 'otp'
+  const [email,     setEmail]     = useState('');
+  const [password,  setPassword]  = useState('');
+  const [showPw,    setShowPw]    = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [otp,       setOtp]       = useState(['', '', '', '', '', '']);
+  const [otpStep,   setOtpStep]   = useState(1); // 1: email, 2: code
+  const [loading,   setLoading]   = useState(false);
+  const [error,     setError]     = useState('');
+  const [showHints, setShowHints] = useState(false);
   const otpRefs = useRef([]);
 
   useEffect(() => {
@@ -34,11 +41,11 @@ export default function Login() {
   // ── Password Login ──
   const handlePasswordLogin = async (e) => {
     e.preventDefault();
-    if (!email) { setError('Please enter your email.'); return; }
+    if (!email.trim()) { setError('Please enter your email address.'); return; }
     if (!password) { setError('Please enter your password.'); return; }
     setLoading(true); setError('');
     try {
-      await login(email, password);
+      await login(email.trim(), password, rememberMe);
       navigate(from, { replace: true });
     } catch (err) {
       setError(err.message);
@@ -48,7 +55,10 @@ export default function Login() {
   // ── OTP Flow ──
   const handleSendOtp = async (e) => {
     e.preventDefault();
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError('Please enter a valid email.'); return; }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
     setLoading(true); setError('');
     try { await sendOtp(email); setOtpStep(2); }
     catch (err) { setError(err.message); }
@@ -83,12 +93,6 @@ export default function Login() {
     } finally { setLoading(false); }
   };
 
-  const fillDemo = (account) => {
-    setEmail(account.email);
-    setPassword(account.password);
-    setError('');
-  };
-
   return (
     <div className="login-page">
       {/* Background decoration */}
@@ -112,7 +116,9 @@ export default function Login() {
         <div style={{ display: 'flex', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-sm)', padding: 4, marginBottom: 28 }}>
           {['password', 'otp'].map(t => (
             <button key={t} onClick={() => { setTab(t); setError(''); setOtpStep(1); setOtp(['','','','','','']); }}
-              style={{ flex: 1, padding: '8px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 600, transition: 'all 0.2s',
+              style={{
+                flex: 1, padding: '8px', border: 'none', borderRadius: 6,
+                cursor: 'pointer', fontSize: 13, fontWeight: 600, transition: 'all 0.2s',
                 background: tab === t ? 'var(--bg-card)' : 'transparent',
                 color: tab === t ? 'var(--color-primary)' : 'var(--text-muted)',
                 boxShadow: tab === t ? 'var(--shadow-xs)' : 'none',
@@ -126,26 +132,76 @@ export default function Login() {
         {tab === 'password' && (
           <form onSubmit={handlePasswordLogin} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div>
-              <label style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: 6 }}>Email Address</label>
+              <label htmlFor="login-email" style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: 6 }}>
+                Email Address
+              </label>
               <div className="input-wrap">
                 <Mail size={15} className="input-icon" />
-                <input type="email" className="input" id="login-email" value={email} onChange={e => { setEmail(e.target.value); setError(''); }} placeholder="you@company.com" autoComplete="email" required />
+                <input
+                  type="email"
+                  id="login-email"
+                  className="input"
+                  value={email}
+                  onChange={e => { setEmail(e.target.value); setError(''); }}
+                  placeholder="you@company.com"
+                  autoComplete="email"
+                  required
+                />
               </div>
             </div>
+
             <div>
-              <label style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: 6 }}>Password</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label htmlFor="login-password" style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Password
+                </label>
+                <Link to="/forgot-password" style={{ fontSize: 12, color: 'var(--color-primary)', textDecoration: 'none', fontWeight: 500 }}>
+                  Forgot password?
+                </Link>
+              </div>
               <div className="input-wrap">
                 <Lock size={15} className="input-icon" />
-                <input type={showPw ? 'text' : 'password'} className="input" id="login-password" value={password} onChange={e => { setPassword(e.target.value); setError(''); }} placeholder="Enter your password" autoComplete="current-password" required style={{ paddingRight: 40 }} />
-                <button type="button" onClick={() => setShowPw(v => !v)} style={{ position: 'absolute', right: 12, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
+                <input
+                  type={showPw ? 'text' : 'password'}
+                  id="login-password"
+                  className="input"
+                  value={password}
+                  onChange={e => { setPassword(e.target.value); setError(''); }}
+                  placeholder="Enter your password"
+                  autoComplete="current-password"
+                  required
+                  style={{ paddingRight: 40 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw(v => !v)}
+                  aria-label={showPw ? 'Hide password' : 'Show password'}
+                  style={{ position: 'absolute', right: 12, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
                   {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
             </div>
 
+            {/* Remember Me */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+              <input
+                type="checkbox"
+                id="login-remember"
+                checked={rememberMe}
+                onChange={e => setRememberMe(e.target.checked)}
+                style={{ width: 16, height: 16, accentColor: 'var(--color-primary)', cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Remember me for 60 minutes</span>
+            </label>
+
             {error && <ErrorMsg message={error} />}
 
-            <button type="submit" className="btn btn-primary btn-lg" id="login-submit" style={{ width: '100%', justifyContent: 'center', marginTop: 4 }} disabled={loading}>
+            <button
+              type="submit"
+              className="btn btn-primary btn-lg"
+              id="login-submit"
+              style={{ width: '100%', justifyContent: 'center', marginTop: 4 }}
+              disabled={loading}>
               {loading ? <LoadingDots /> : <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>Sign In <ArrowRight size={16} /></span>}
             </button>
           </form>
@@ -160,7 +216,15 @@ export default function Login() {
                   <label style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: 6 }}>Email Address</label>
                   <div className="input-wrap">
                     <Mail size={15} className="input-icon" />
-                    <input type="email" className="input" value={email} onChange={e => { setEmail(e.target.value); setError(''); }} placeholder="you@company.com" autoComplete="email" required />
+                    <input
+                      type="email"
+                      className="input"
+                      value={email}
+                      onChange={e => { setEmail(e.target.value); setError(''); }}
+                      placeholder="you@company.com"
+                      autoComplete="email"
+                      required
+                    />
                   </div>
                 </div>
                 {error && <ErrorMsg message={error} />}
@@ -177,11 +241,19 @@ export default function Login() {
                 <form onSubmit={e => { e.preventDefault(); handleVerifyOtp(); }} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
                   <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
                     {otp.map((digit, i) => (
-                      <input key={i} ref={el => otpRefs.current[i] = el} type="text" inputMode="numeric" maxLength={1} value={digit}
-                        onChange={e => handleOtpChange(i, e.target.value)} onKeyDown={e => handleOtpKeyDown(i, e)}
+                      <input
+                        key={i}
+                        ref={el => otpRefs.current[i] = el}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={1}
+                        value={digit}
+                        onChange={e => handleOtpChange(i, e.target.value)}
+                        onKeyDown={e => handleOtpKeyDown(i, e)}
                         style={{ width: 44, height: 52, textAlign: 'center', fontSize: 20, fontWeight: 700, borderRadius: 10, border: '1.5px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)', outline: 'none', transition: 'border-color 0.2s', fontFamily: 'var(--font)' }}
                         onFocus={e => e.target.style.borderColor = 'var(--color-primary)'}
-                        onBlur={e => e.target.style.borderColor = digit ? 'var(--border)' : 'var(--border-light)'} />
+                        onBlur={e => e.target.style.borderColor = digit ? 'var(--color-primary)' : 'var(--border)'}
+                      />
                     ))}
                   </div>
                   {error && <ErrorMsg message={error} />}
@@ -189,7 +261,9 @@ export default function Login() {
                     {loading ? <LoadingDots /> : 'Verify & Sign In'}
                   </button>
                 </form>
-                <button onClick={() => { setOtpStep(1); setError(''); setOtp(['','','','','','']); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, margin: '16px auto 0' }}>
+                <button
+                  onClick={() => { setOtpStep(1); setError(''); setOtp(['','','','','','']); }}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, margin: '16px auto 0' }}>
                   <ArrowLeft size={13} /> Back to email
                 </button>
               </div>
@@ -197,36 +271,44 @@ export default function Login() {
           </>
         )}
 
-        {/* Demo Accounts */}
+        {/* Demo credentials hint — collapsible, not auto-fill */}
         <div style={{ marginTop: 28 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <div style={{ flex: 1, height: 1, background: 'var(--border-light)' }} />
-            <span style={{ fontSize: 11.5, color: 'var(--text-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <Zap size={12} color="var(--color-primary)" /> DEMO ACCOUNTS — click to fill
-            </span>
+            <button
+              type="button"
+              onClick={() => setShowHints(v => !v)}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', fontSize: 11.5, color: 'var(--text-muted)', fontWeight: 600, padding: '2px 8px', borderRadius: 4, transition: 'color 0.15s' }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--color-primary)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}>
+              <Info size={12} />
+              {showHints ? 'Hide' : 'Show'} Demo Credentials
+            </button>
             <div style={{ flex: 1, height: 1, background: 'var(--border-light)' }} />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {DEMO_ACCOUNTS.map(acc => (
-              <button key={acc.email} onClick={() => fillDemo(acc)} type="button"
-                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: acc.bg, border: `1px solid ${acc.color}22`, borderRadius: 'var(--radius-sm)', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s', fontFamily: 'var(--font)' }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = acc.color; e.currentTarget.style.transform = 'translateX(3px)'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = `${acc.color}22`; e.currentTarget.style.transform = 'translateX(0)'; }}>
-                <span style={{ fontSize: 18 }}>{acc.icon}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: acc.color }}>{acc.role}</div>
-                  <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{acc.email}</div>
+
+          {showHints && (
+            <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <p style={{ fontSize: 11.5, color: 'var(--text-muted)', textAlign: 'center', marginBottom: 4 }}>
+                All passwords: <strong style={{ color: 'var(--text-primary)' }}>demo123</strong> · OTP code: <strong style={{ color: 'var(--text-primary)' }}>123456</strong>
+              </p>
+              {DEMO_HINTS.map(hint => (
+                <div key={hint.role} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: hint.bg, borderRadius: 'var(--radius-sm)', border: `1px solid ${hint.color}22` }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: hint.color, flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: hint.color }}>{hint.role}</span>
+                    <span style={{ fontSize: 11.5, color: 'var(--text-muted)', marginLeft: 8 }}>{hint.email}</span>
+                  </div>
                 </div>
-                <ArrowRight size={13} color={acc.color} />
-              </button>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Security notice */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 24, justifyContent: 'center' }}>
           <ShieldCheck size={13} color="var(--status-success)" />
-          <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>All passwords: <strong>demo123</strong> · OTP: <strong>123456</strong></span>
+          <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>Protected by enterprise-grade security</span>
         </div>
       </div>
     </div>

@@ -5,22 +5,22 @@ import { useAuth } from '../context/AuthContext';
 
 const RoleBadge = ({ role }) => {
   const configs = {
-    'Super Admin': { cls: 'badge-danger', label: 'Super Admin' },
-    'Company Admin': { cls: 'badge-danger', label: 'Company Admin' },
-    Auditor: { cls: 'badge-primary', label: 'Auditor' },
-    Analyst: { cls: 'badge-info', label: 'Analyst' },
-    Viewer: { cls: 'badge-neutral', label: 'Viewer' },
+    'Super Admin':    { cls: 'badge-danger',  label: 'Super Admin' },
+    'Company Admin':  { cls: 'badge-danger',  label: 'Company Admin' },
+    'Building Owner': { cls: 'badge-info',    label: 'Building Owner' },
+    'Supplier':       { cls: 'badge-warning', label: 'Supplier' },
+    Auditor:          { cls: 'badge-primary', label: 'Auditor' },
   };
   const cfg = configs[role] || { cls: 'badge-neutral', label: role };
   return <span className={`badge ${cfg.cls}`}>{cfg.label}</span>;
 };
 
 const roleDescriptions = {
-  'Super Admin': { color: '#EF4444', bg: '#FEF2F2', description: 'Platform-wide access. Can manage all companies, subscriptions, and system settings.', icon: '🌍' },
-  'Company Admin': { color: '#EF4444', bg: '#FEF2F2', description: 'Full access to their company. Can manage all buildings, users, and settings within the company.', icon: '👑' },
-  Auditor: { color: '#3B82F6', bg: '#EFF6FF', description: 'Can create and complete audits for assigned buildings.', icon: '🔍' },
-  Analyst: { color: '#8B5CF6', bg: '#F5F3FF', description: 'Can view data, run AI analysis, and generate reports.', icon: '📊' },
-  Viewer: { color: '#6B7280', bg: '#F9FAFB', description: 'Read-only access to assigned building data.', icon: '👁️' },
+  'Super Admin':    { color: '#EF4444', bg: '#FEF2F2', description: 'Platform-wide access. Can manage all companies, subscriptions, and system settings.', icon: '🌍' },
+  'Company Admin':  { color: '#EF4444', bg: '#FEF2F2', description: 'Full access to their company. Can manage all buildings, users, and settings within the company.', icon: '👑' },
+  'Building Owner': { color: '#0369A1', bg: '#E0F2FE', description: 'Access to own building data. Can view compliance, extinguishers, contracts, and AI insights.', icon: '🏢' },
+  'Supplier':       { color: '#7C3AED', bg: '#F3E8FF', description: 'Manages supply and maintenance contracts for buildings in assigned districts.', icon: '🏭' },
+  'Auditor':        { color: '#3B82F6', bg: '#EFF6FF', description: 'Can create, schedule, and complete audits for assigned buildings. Access to AI Assistant.', icon: '🔍' },
 };
 
 const EMPTY_INVITE = { name: '', email: '', role: 'Viewer', buildings: '' };
@@ -88,10 +88,10 @@ export default function UserPermissions() {
       {/* Stats */}
       <div className="grid grid-4" style={{ gap: 16 }}>
         {[
-          { label: 'Total Users', value: users.length, color: '#3B82F6', icon: Users },
-          { label: 'Active', value: users.filter(u => u.status === 'Active').length, color: '#22C55E', icon: CheckCircle },
-          { label: 'Admins', value: users.filter(u => u.role === 'Admin').length, color: '#EF4444', icon: Shield },
-          { label: 'Analysts', value: users.filter(u => u.role === 'Analyst').length, color: '#8B5CF6', icon: Eye },
+          { label: 'Total Users',    value: users.length,                                            color: '#3B82F6', icon: Users },
+          { label: 'Active',         value: users.filter(u => u.status === 'Active').length,          color: '#22C55E', icon: CheckCircle },
+          { label: 'Admins',         value: users.filter(u => u.role.includes('Admin')).length,       color: '#EF4444', icon: Shield },
+          { label: 'Auditors',       value: users.filter(u => u.role === 'Auditor').length,           color: '#3B82F6', icon: Eye },
         ].map((stat, i) => {
           const Icon = stat.icon;
           return (
@@ -354,12 +354,12 @@ export default function UserPermissions() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6 }}>Role *</label>
-                  <select required className="select" style={{ width: '100%' }}
+                   <select required className="select" style={{ width: '100%' }}
                     value={inviteForm.role} onChange={e => setInviteForm(f => ({ ...f, role: e.target.value }))}>
-                    <option value="Viewer">Viewer</option>
-                    <option value="Analyst">Analyst</option>
+                    <option value="Building Owner">Building Owner</option>
                     <option value="Auditor">Auditor</option>
-                    <option value="Admin">Admin</option>
+                    <option value="Supplier">Supplier</option>
+                    <option value="Company Admin">Company Admin</option>
                   </select>
                 </div>
                 <div>
@@ -409,10 +409,11 @@ export default function UserPermissions() {
                   <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6 }}>Role</label>
                   <select className="select" style={{ width: '100%' }}
                     value={editForm.role} onChange={e => setEditForm(f => ({ ...f, role: e.target.value }))}>
-                    <option value="Viewer">Viewer</option>
-                    <option value="Analyst">Analyst</option>
+                    <option value="Building Owner">Building Owner</option>
                     <option value="Auditor">Auditor</option>
-                    <option value="Admin">Admin</option>
+                    <option value="Supplier">Supplier</option>
+                    <option value="Company Admin">Company Admin</option>
+                    {isSuperAdmin && <option value="Super Admin">Super Admin</option>}
                   </select>
                 </div>
                 <div>
