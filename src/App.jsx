@@ -6,36 +6,26 @@ import { PageSkeleton } from './components/ui/Skeleton';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import DashboardLayout from './components/layout/DashboardLayout';
 
-// Lazy load pages
-const Dashboard      = React.lazy(() => import('./pages/Dashboard'));
-const Buildings      = React.lazy(() => import('./pages/Buildings'));
-const Extinguishers  = React.lazy(() => import('./pages/Extinguishers'));
-const Audits         = React.lazy(() => import('./pages/Audits'));
-const AIRisk         = React.lazy(() => import('./pages/AIRisk'));
-const AIAssistant    = React.lazy(() => import('./pages/AIAssistant'));
-const Reports        = React.lazy(() => import('./pages/Reports'));
-const UserPermissions = React.lazy(() => import('./pages/UserPermissions'));
-const Settings       = React.lazy(() => import('./pages/Settings'));
-const About          = React.lazy(() => import('./pages/About'));
-const Profile        = React.lazy(() => import('./pages/Profile'));
-const Login          = React.lazy(() => import('./pages/Login'));
+// ── Lazy load pages ──────────────────────────────────────────
+const Dashboard    = React.lazy(() => import('./pages/Dashboard'));
+const Buildings    = React.lazy(() => import('./pages/Buildings'));
+const Equipment    = React.lazy(() => import('./pages/Equipment'));
+const Inspections  = React.lazy(() => import('./pages/Inspections'));
+const Incidents    = React.lazy(() => import('./pages/Incidents'));
+const AIPrediction = React.lazy(() => import('./pages/AIPrediction'));
+const Compliance   = React.lazy(() => import('./pages/Compliance'));
+const Reports      = React.lazy(() => import('./pages/Reports'));
+const Settings     = React.lazy(() => import('./pages/Settings'));
+const Profile      = React.lazy(() => import('./pages/Profile'));
+const Login        = React.lazy(() => import('./pages/Login'));
 const ForgotPassword = React.lazy(() => import('./pages/ForgotPassword'));
-const Unauthorized   = React.lazy(() => import('./pages/Unauthorized'));
-// Additional pages
-const Suppliers      = React.lazy(() => import('./pages/Suppliers'));
-const Contracts      = React.lazy(() => import('./pages/Contracts'));
-const FireIncidents  = React.lazy(() => import('./pages/FireIncidents'));
+const Unauthorized = React.lazy(() => import('./pages/Unauthorized'));
 
 import './index.css';
 
-// 4 Core roles — Analyst removed
-const ALL_ROLES = ['Super Admin', 'Company Admin', 'Supplier', 'Building Owner', 'Auditor'];
-const MGMT      = ['Super Admin', 'Company Admin'];
-const SUPP      = ['Super Admin', 'Company Admin', 'Supplier'];
-const INTEL     = ['Super Admin', 'Company Admin'];
-const AUDIT_ACCESS = ['Super Admin', 'Company Admin', 'Auditor', 'Building Owner'];
-// AI Assistant: Super Admin, Building Owner, Auditor (opened up from Analyst-only)
-const AI_ACCESS = ['Super Admin', 'Company Admin', 'Building Owner', 'Auditor'];
+// ── Role groups ──────────────────────────────────────────────
+const ALL   = ['Admin', 'Facility Manager', 'Inspector'];
+const ADMIN = ['Admin', 'Facility Manager'];
 
 function App() {
   return (
@@ -56,66 +46,30 @@ function App() {
                 </ProtectedRoute>
               }>
                 {/* All roles */}
-                <Route path="/"             element={<Dashboard />} />
-                <Route path="/buildings"    element={<Buildings />} />
-                <Route path="/extinguishers" element={<Extinguishers />} />
-                <Route path="/settings"     element={<Settings />} />
-                <Route path="/profile"      element={<Profile />} />
-                <Route path="/about"        element={<About />} />
+                <Route path="/"            element={<Dashboard />} />
+                <Route path="/buildings"   element={<Buildings />} />
+                <Route path="/equipment"   element={<Equipment />} />
+                <Route path="/inspections" element={<Inspections />} />
+                <Route path="/incidents"   element={<Incidents />} />
+                <Route path="/settings"    element={<Settings />} />
+                <Route path="/profile"     element={<Profile />} />
 
-                {/* Audits — auditors, building owners, admins */}
-                <Route path="/audits" element={
-                  <ProtectedRoute allowedRoles={AUDIT_ACCESS}>
-                    <Audits />
+                {/* Admin + Facility Manager only */}
+                <Route path="/ai-prediction" element={
+                  <ProtectedRoute allowedRoles={ADMIN}>
+                    <AIPrediction />
                   </ProtectedRoute>
                 } />
 
-                {/* Fire Incidents — all except restricted */}
-                <Route path="/fire-incidents" element={
-                  <ProtectedRoute allowedRoles={ALL_ROLES}>
-                    <FireIncidents />
+                <Route path="/compliance" element={
+                  <ProtectedRoute allowedRoles={ADMIN}>
+                    <Compliance />
                   </ProtectedRoute>
                 } />
 
-                {/* AI Risk Analysis — Super Admin only */}
-                <Route path="/ai-risk" element={
-                  <ProtectedRoute allowedRoles={INTEL}>
-                    <AIRisk />
-                  </ProtectedRoute>
-                } />
-
-                {/* AI Assistant — Super Admin, Building Owner, Auditor */}
-                <Route path="/ai-assistant" element={
-                  <ProtectedRoute allowedRoles={AI_ACCESS}>
-                    <AIAssistant />
-                  </ProtectedRoute>
-                } />
-
-                {/* Reports */}
                 <Route path="/reports" element={
-                  <ProtectedRoute allowedRoles={[...INTEL, 'Auditor', 'Supplier']}>
+                  <ProtectedRoute allowedRoles={ADMIN}>
                     <Reports />
-                  </ProtectedRoute>
-                } />
-
-                {/* Suppliers */}
-                <Route path="/suppliers" element={
-                  <ProtectedRoute allowedRoles={SUPP}>
-                    <Suppliers />
-                  </ProtectedRoute>
-                } />
-
-                {/* Contracts */}
-                <Route path="/contracts" element={
-                  <ProtectedRoute allowedRoles={[...SUPP, 'Auditor']}>
-                    <Contracts />
-                  </ProtectedRoute>
-                } />
-
-                {/* User Permissions — admins only */}
-                <Route path="/users" element={
-                  <ProtectedRoute allowedRoles={MGMT}>
-                    <UserPermissions />
                   </ProtectedRoute>
                 } />
 

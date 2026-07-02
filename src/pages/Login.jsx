@@ -5,10 +5,9 @@ import { useAuth } from '../context/AuthContext';
 
 // Demo credential hints — shown as info, NOT auto-filled
 const DEMO_HINTS = [
-  { role: 'Super Admin',    email: 'siva@fireguard.ai',     color: '#1F6F50', bg: '#DFF3E8' },
-  { role: 'Supplier',       email: 'supplier@abcfire.com',  color: '#7C3AED', bg: '#F3E8FF' },
-  { role: 'Building Owner', email: 'owner@ngp.com',         color: '#0369A1', bg: '#E0F2FE' },
-  { role: 'Auditor',        email: 'auditor@fireguard.ai',  color: '#B45309', bg: '#FEF3C7' },
+  { role: 'Admin',            email: 'admin@fireguard.ai',    color: '#2563EB', bg: 'rgba(37,99,235,0.1)' },
+  { role: 'Facility Manager', email: 'manager@fireguard.ai',  color: '#22C55E', bg: 'rgba(34,197,94,0.1)' },
+  { role: 'Inspector',        email: 'inspector@fireguard.ai', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)' },
 ];
 
 export default function Login() {

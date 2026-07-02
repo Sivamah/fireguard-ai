@@ -1,18 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { users as DEMO_USERS } from '../data/mockData';
 
-// ─── Session Config ──────────────────────────────────────────────────────────
+// ─── Session Config ───────────────────────────────────────────
 const SESSION_DURATION_MS = 60 * 60 * 1000; // 60 minutes
 const SESSION_KEY = 'fireguard_session';
 const TOKEN_KEY   = 'fireguard_token';
 const THEME_KEY   = 'fireguard_theme';
 
-// ─── Fake JWT Generator ──────────────────────────────────────────────────────
+// ─── Fake JWT Generator ───────────────────────────────────────
 function generateToken(user) {
   const header  = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
   const payload = btoa(JSON.stringify({
     sub: user.id, name: user.name, role: user.role,
-    companyId: user.companyId,
     iat: Date.now(), exp: Date.now() + SESSION_DURATION_MS,
   }));
   const sig = btoa(`${user.id}-${user.role}-fireguard-secret`);
@@ -29,15 +28,15 @@ function parseToken(token) {
   } catch { return null; }
 }
 
-// ─── Auth Context ─────────────────────────────────────────────────────────────
+// ─── Auth Context ─────────────────────────────────────────────
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser]                   = useState(null);
-  const [isLoading, setIsLoading]         = useState(true);
-  const [sessionExpiry, setSessionExpiry] = useState(null);
+  const [user, setUser]                     = useState(null);
+  const [isLoading, setIsLoading]           = useState(true);
+  const [sessionExpiry, setSessionExpiry]   = useState(null);
   const [sessionWarning, setSessionWarning] = useState(false);
-  const [theme, setThemeState]            = useState(() => localStorage.getItem(THEME_KEY) || 'light');
+  const [theme, setThemeState]              = useState(() => localStorage.getItem(THEME_KEY) || 'dark');
 
   // ── Apply theme to DOM ──
   useEffect(() => {
@@ -81,15 +80,15 @@ export function AuthProvider({ children }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionExpiry]);
 
-  // ── Password Login (primary demo flow) ──
-  const login = useCallback(async (email, password, rememberMe = false) => {
+  // ── Password Login ──
+  const login = useCallback(async (email, password) => {
     await new Promise(r => setTimeout(r, 700));
     const account = DEMO_USERS.find(
       a => a.email.toLowerCase() === email.toLowerCase() && a.password === password
     );
     if (!account) throw new Error('Invalid email or password. Please try again.');
     if (account.status !== 'Active') throw new Error('Your account is inactive. Please contact support.');
-    return _createSession(account, rememberMe);
+    return _createSession(account);
   }, []);
 
   // ── Send OTP ──
@@ -97,7 +96,6 @@ export function AuthProvider({ children }) {
     await new Promise(r => setTimeout(r, 800));
     const account = DEMO_USERS.find(a => a.email.toLowerCase() === email.toLowerCase());
     if (!account) throw new Error('Email not found. Please contact your administrator.');
-    if (account.status !== 'Active') throw new Error('Your account is inactive. Please contact support.');
     return true;
   }, []);
 
@@ -110,16 +108,13 @@ export function AuthProvider({ children }) {
     return _createSession(account);
   }, []);
 
-  function _createSession(account, rememberMe = false) {
-    // Strip password before storing
+  function _createSession(account) {
     // eslint-disable-next-line no-unused-vars
     const { password: _pw, ...safeUser } = account;
     const token   = generateToken(safeUser);
     const payload = parseToken(token);
-    const storage = rememberMe ? localStorage : sessionStorage;
-    // Always write to localStorage for session restore; sessionStorage for non-remember
     localStorage.setItem(TOKEN_KEY,   token);
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ user: safeUser, rememberMe }));
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ user: safeUser }));
     setUser(safeUser);
     setSessionExpiry(payload.exp);
     setSessionWarning(false);
@@ -136,7 +131,7 @@ export function AuthProvider({ children }) {
     setSessionWarning(false);
   }, []);
 
-  // ── Extend session ──
+  // ── Extend Session ──
   const extendSession = useCallback(() => {
     if (!user) return;
     const newToken = generateToken(user);
@@ -146,7 +141,7 @@ export function AuthProvider({ children }) {
     setSessionWarning(false);
   }, [user]);
 
-  // ── Update user profile ──
+  // ── Update Profile ──
   const updateProfile = useCallback((updates) => {
     setUser(prev => {
       const updated = { ...prev, ...updates };
@@ -171,12 +166,13 @@ export function AuthProvider({ children }) {
     logout,
     extendSession,
     updateProfile,
-    // Role Helpers (4 core roles — Analyst removed)
-    isSuperAdmin:    user?.role === 'Super Admin',
-    isCompanyAdmin:  user?.role === 'Company Admin',
-    isSupplier:      user?.role === 'Supplier',
-    isBuildingOwner: user?.role === 'Building Owner',
-    isAuditor:       user?.role === 'Auditor',
+    // Role Helpers — Admin, Facility Manager, Inspector
+    isAdmin:           user?.role === 'Admin',
+    isFacilityManager: user?.role === 'Facility Manager',
+    isInspector:       user?.role === 'Inspector',
+    // Legacy compat helpers
+    isSuperAdmin:      user?.role === 'Admin',
+    isCompanyAdmin:    user?.role === 'Facility Manager',
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

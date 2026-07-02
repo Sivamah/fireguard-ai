@@ -1,102 +1,109 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
-  Building2, Flame, ClipboardCheck, AlertTriangle, TrendingUp,
-  TrendingDown, ChevronRight, BrainCircuit, ShieldCheck, Calendar,
-  Zap, FileText, Users, Handshake, Globe, BarChart2,
-  ArrowUpRight, CheckCircle2, Clock, MapPin, ChevronDown, ChevronUp
+  Building2, Wrench, ClipboardList, AlertTriangle, BrainCircuit,
+  ShieldCheck, ChevronRight, TrendingUp, TrendingDown,
+  CheckCircle2, Clock, Flame, Zap, ArrowRight
 } from 'lucide-react';
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend
+  RadialBarChart, RadialBar, ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip
 } from 'recharts';
 import { useAuth } from '../context/AuthContext';
-import {
-  companies, buildings, extinguishers, audits, upcomingAudits,
-  alerts, complianceTrend, contracts, fireIncidents, suppliers,
-  supplierAnalytics
-} from '../data/mockData';
+import { buildings, equipment, inspections, incidents, alerts, complianceTrend, aiPredictions } from '../data/mockData';
 
-// ── Helpers ──
-const riskColor = (level) => ({ Critical: '#EF4444', High: '#F97316', Medium: '#F59E0B', Low: '#22C55E' }[level] || '#6B7280');
-const riskBg    = (level) => ({ Critical: '#FEF2F2', High: '#FFF7ED', Medium: '#FFFBEB', Low: '#F0FDF4' }[level] || '#F9FAFB');
+// ── Helpers ──────────────────────────────────────────────────
+const riskColor = l => ({ Critical: '#EF4444', High: '#F97316', Medium: '#F59E0B', Low: '#22C55E' }[l] || '#64748B');
+const riskBg    = l => ({ Critical: 'rgba(239,68,68,0.12)', High: 'rgba(249,115,22,0.12)', Medium: 'rgba(245,158,11,0.12)', Low: 'rgba(34,197,94,0.12)' }[l] || 'var(--bg-elevated)');
+const statusColor = s => ({ Active: '#22C55E', Expired: '#EF4444', 'Expiring Soon': '#F59E0B', 'Needs Maintenance': '#F97316' }[s] || '#64748B');
 
-function KpiCard({ label, value, icon: Icon, iconBg, iconColor, accentColor, delta, deltaLabel, onClick }) {
+function AnimatedCounter({ value, suffix = '' }) {
   return (
-    <div className="kpi-card animate-up" onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default', '--kpi-accent': accentColor || 'var(--color-primary)' }}>
-      <div className="kpi-icon" style={{ background: iconBg || 'var(--color-primary-ultra)', color: iconColor || 'var(--color-primary)' }}>
-        <Icon size={22} />
+    <motion.span
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      style={{ display: 'inline-block' }}
+    >
+      {value}{suffix}
+    </motion.span>
+  );
+}
+
+// ── KPI Card ─────────────────────────────────────────────────
+function KpiCard({ label, value, icon: Icon, iconBg, iconColor, accentColor, delta, deltaLabel, onClick, delay = 0 }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay }}
+      className="kpi-card"
+      onClick={onClick}
+      style={{ cursor: onClick ? 'pointer' : 'default', '--kpi-accent': accentColor || 'var(--color-primary)' }}
+    >
+      <div className="kpi-icon" style={{ background: iconBg, color: iconColor }}>
+        <Icon size={21} />
       </div>
       <div className="kpi-label">{label}</div>
-      <div className="kpi-value">{value}</div>
+      <div className="kpi-value"><AnimatedCounter value={value} /></div>
       {delta !== undefined && (
         <div className="kpi-desc">
-          {delta >= 0 ? <TrendingUp size={13} color="var(--status-success)" /> : <TrendingDown size={13} color="var(--status-danger)" />}
+          {delta >= 0
+            ? <TrendingUp size={13} color="var(--status-success)" />
+            : <TrendingDown size={13} color="var(--status-danger)" />}
           <span style={{ color: delta >= 0 ? 'var(--status-success)' : 'var(--status-danger)', fontWeight: 600 }}>{Math.abs(delta)}%</span>
           <span style={{ color: 'var(--text-muted)' }}>{deltaLabel}</span>
         </div>
+      )}
+    </motion.div>
+  );
+}
+
+// ── Section Header ────────────────────────────────────────────
+function SectionHeader({ title, sub, action, onAction }) {
+  return (
+    <div className="section-header">
+      <div>
+        <div className="section-title">{title}</div>
+        {sub && <div className="section-sub">{sub}</div>}
+      </div>
+      {action && (
+        <button onClick={onAction} className="btn btn-ghost btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          {action} <ChevronRight size={13} />
+        </button>
       )}
     </div>
   );
 }
 
-function SectionHeader({ title, sub, action, onAction }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 16 }}>
-      <div>
-        <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>{title}</h2>
-        {sub && <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 3 }}>{sub}</p>}
-      </div>
-      {action && <button onClick={onAction} className="btn btn-ghost btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>{action} <ChevronRight size={13} /></button>}
-    </div>
-  );
-}
+// ── Main Dashboard ────────────────────────────────────────────
+export default function Dashboard() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
-// ── Tamil Nadu District Risk Map ──────────────────────────────────────────────
-function DistrictRiskMap({ scoped, onDistrictClick }) {
-  const districtData = useMemo(() => {
-    const districts = ['Coimbatore', 'Chennai', 'Madurai', 'Tiruppur', 'Salem'];
-    return districts.map(d => {
-      const dBuildings = scoped.filter(b => b.district === d);
-      const avgScore   = dBuildings.length ? Math.round(dBuildings.reduce((s, b) => s + b.complianceScore, 0) / dBuildings.length) : null;
-      const riskLevel  = dBuildings.some(b => b.riskLevel === 'Critical') ? 'Critical'
-        : dBuildings.some(b => b.riskLevel === 'High') ? 'High'
-        : dBuildings.some(b => b.riskLevel === 'Medium') ? 'Medium'
-        : dBuildings.length ? 'Low' : null;
-      return { name: d, buildings: dBuildings.length, avgScore, riskLevel, riskScore: Math.round(dBuildings.reduce((s, b) => s + b.riskScore, 0) / Math.max(dBuildings.length, 1)), alerts: dBuildings.reduce((s, b) => s + b.alerts, 0) };
-    }).filter(d => d.buildings > 0);
-  }, [scoped]);
+  // ── Computed stats ──
+  const totalBuildings     = buildings.length;
+  const totalEquipment     = equipment.length;
+  const expiredEquipment   = equipment.filter(e => e.status === 'Expired').length;
+  const expiringSoon       = equipment.filter(e => e.status === 'Expiring Soon').length;
+  const needsMaintenance   = equipment.filter(e => e.status === 'Needs Maintenance').length;
+  const pendingInspections = inspections.filter(i => i.status === 'Overdue Action' || i.status === 'Action Required').length;
+  const highRiskBuildings  = buildings.filter(b => b.riskLevel === 'Critical' || b.riskLevel === 'High').length;
+  const unreadAlerts       = alerts.filter(a => !a.read).length;
 
-  return (
-    <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
-        {districtData.map(d => (
-          <div key={d.name} className={`district-card ${d.riskLevel?.toLowerCase()}`}
-            onClick={() => onDistrictClick && onDistrictClick(d.name)}
-            title={`Click to filter buildings in ${d.name}`}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{d.name}</div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: riskColor(d.riskLevel), lineHeight: 1 }}>{d.avgScore}%</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>{d.buildings} building{d.buildings !== 1 ? 's' : ''}</div>
-            <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 2 }}>Risk: {d.riskScore}%</div>
-            {d.alerts > 0 && <div style={{ marginTop: 6, fontSize: 10, fontWeight: 700, color: '#EF4444', background: '#FEF2F2', padding: '2px 7px', borderRadius: 20, display: 'inline-block' }}>{d.alerts} alert{d.alerts !== 1 ? 's' : ''}</div>}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+  const overallCompliance  = useMemo(() => {
+    const scores = buildings.map(b => b.complianceScore);
+    return Math.round(scores.reduce((s, v) => s + v, 0) / scores.length);
+  }, []);
 
-// ── Role: SUPER ADMIN ─────────────────────────────────────────────────────────
-function SuperAdminDash({ nav }) {
-  const [showAnalytics, setShowAnalytics] = useState(false);
+  // Top risk building for overview panel
+  const topRiskBuilding = useMemo(() => {
+    const sorted = [...aiPredictions].sort((a, b) => b.riskScore - a.riskScore);
+    return sorted[0];
+  }, []);
 
-  const totalExt        = extinguishers.length;
-  const expiredExt      = extinguishers.filter(e => e.status === 'Expired').length;
-  const expiringSoon    = extinguishers.filter(e => e.status === 'Expiring Soon').length;
-  const critBuildings   = buildings.filter(b => b.riskLevel === 'Critical').length;
-  const activeContracts = contracts.filter(c => c.status === 'Active').length;
-  const unreadAlerts    = alerts.filter(a => !a.read).length;
-  const totalIncidents  = fireIncidents.length;
+  const gaugeData = [{ value: topRiskBuilding?.riskScore || 0, fill: riskColor(topRiskBuilding?.riskLevel) }];
 
   const greeting = () => {
     const h = new Date().getHours();
@@ -105,65 +112,241 @@ function SuperAdminDash({ nav }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-      {/* Greeting */}
-      <div className="animate-up" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+
+      {/* ── Greeting Header ── */}
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>
-            {greeting()}, Siva 👋
+            {greeting()}, {user?.name?.split(' ')[0]} 👋
           </h1>
-          <p style={{ fontSize: 13.5, color: 'var(--text-muted)', marginTop: 4 }}>
-            Platform overview · {new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
+            FireGuard AI · {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn btn-secondary btn-sm" onClick={() => nav('/reports')} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <BarChart2 size={14} /> Reports
+          <button className="btn btn-secondary btn-sm" onClick={() => navigate('/reports')} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <ClipboardList size={14} /> Reports
           </button>
-          <button className="btn btn-primary btn-sm" onClick={() => nav('/ai-assistant')} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Zap size={14} /> Ask AI
+          <button className="btn btn-primary btn-sm" onClick={() => navigate('/ai-prediction')} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Zap size={14} /> AI Prediction
           </button>
         </div>
+      </motion.div>
+
+      {/* ── Research Workflow Banner ── */}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}
+        style={{ background: 'linear-gradient(135deg, rgba(37,99,235,0.12) 0%, rgba(37,99,235,0.04) 100%)', border: '1px solid rgba(37,99,235,0.2)', borderRadius: 'var(--radius-lg)', padding: '14px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <span className="ai-pulse-dot" />
+          <span style={{ fontSize: 12, fontWeight: 700, color: '#60A5FA', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Research Workflow</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {[
+            { label: 'Building Data', path: '/buildings', icon: Building2 },
+            { label: 'Equipment', path: '/equipment', icon: Wrench },
+            { label: 'Inspection', path: '/inspections', icon: ClipboardList },
+            { label: 'Incidents', path: '/incidents', icon: Flame },
+            { label: 'AI Prediction', path: '/ai-prediction', icon: BrainCircuit },
+            { label: 'Compliance', path: '/compliance', icon: ShieldCheck },
+          ].map((step, i) => (
+            <React.Fragment key={step.label}>
+              <div onClick={() => navigate(step.path)}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--radius-full)', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', transition: 'all 0.15s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.color = '#60A5FA'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}>
+                <step.icon size={12} />
+                {step.label}
+              </div>
+              {i < 5 && <ArrowRight size={12} color="var(--text-muted)" />}
+            </React.Fragment>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* ── KPI Cards ── */}
+      <div className="grid grid-4" style={{ gap: 16 }}>
+        <KpiCard label="Total Buildings"    value={totalBuildings}    icon={Building2}    iconBg="rgba(37,99,235,0.12)"   iconColor="#60A5FA"  accentColor="#2563EB" delta={0}  deltaLabel="this month" onClick={() => navigate('/buildings')} delay={0} />
+        <KpiCard label="Total Equipment"    value={totalEquipment}    icon={Wrench}       iconBg="rgba(34,197,94,0.12)"   iconColor="#4ADE80"  accentColor="#22C55E" delta={2}  deltaLabel="new items"  onClick={() => navigate('/equipment')} delay={0.05} />
+        <KpiCard label="Pending Inspections" value={pendingInspections} icon={ClipboardList} iconBg="rgba(245,158,11,0.12)" iconColor="#FCD34D" accentColor="#F59E0B" delta={-1} deltaLabel="vs last week" onClick={() => navigate('/inspections')} delay={0.10} />
+        <KpiCard label="High Risk Buildings" value={highRiskBuildings}  icon={AlertTriangle} iconBg="rgba(239,68,68,0.12)" iconColor="#F87171"  accentColor="#EF4444" onClick={() => navigate('/buildings')} delay={0.15} />
       </div>
 
-      {/* Core KPIs — simplified, no financials */}
-      <div className="grid grid-3 grid-2-mobile">
-        <KpiCard label="Total Companies"    value={companies.length}    icon={Globe}         iconBg="#E0F2FE" iconColor="#0369A1" accentColor="#0369A1" onClick={() => nav('/buildings')} />
-        <KpiCard label="Total Buildings"    value={buildings.length}    icon={Building2}     iconBg="var(--color-primary-ultra)" iconColor="var(--color-primary)" accentColor="var(--color-primary)" onClick={() => nav('/buildings')} />
-        <KpiCard label="Active Contracts"   value={activeContracts}     icon={FileText}      iconBg="#E0E7FF" iconColor="#4338CA" accentColor="#4338CA" onClick={() => nav('/contracts')} />
-        <KpiCard label="Fire Incidents"     value={totalIncidents}      icon={Flame}         iconBg="#FEF3C7" iconColor="#B45309" accentColor="#F59E0B" onClick={() => nav('/fire-incidents')} />
-        <KpiCard label="Critical Alerts"    value={unreadAlerts}        icon={AlertTriangle} iconBg="#FEF2F2" iconColor="#EF4444" accentColor="#EF4444" />
-        <KpiCard label="Active Suppliers"   value={suppliers.length}    icon={Handshake}     iconBg="#F3E8FF" iconColor="#7C3AED" accentColor="#7C3AED" onClick={() => nav('/suppliers')} />
-      </div>
-
-      {/* Status strip — quick action chips */}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+      {/* ── Equipment Status Strip ── */}
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+        style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {[
-          { label: 'Expired Extinguishers',  val: expiredExt,     color: '#EF4444', bg: '#FEF2F2', path: '/extinguishers' },
-          { label: 'Expiring Soon',          val: expiringSoon,   color: '#F59E0B', bg: '#FFFBEB', path: '/extinguishers' },
-          { label: 'Critical Buildings',     val: critBuildings,  color: '#EF4444', bg: '#FEF2F2', path: '/buildings' },
-          { label: 'Overdue Audits',         val: audits.filter(a => a.status === 'Overdue').length, color: '#F97316', bg: '#FFF7ED', path: '/audits' },
-          { label: 'Expiring Contracts',     val: contracts.filter(c => c.status === 'Expiring').length, color: '#B45309', bg: '#FEF3C7', path: '/contracts' },
+          { label: 'Expired Equipment',   val: expiredEquipment,  color: '#EF4444', bg: 'rgba(239,68,68,0.1)',  path: '/equipment' },
+          { label: 'Expiring Soon',       val: expiringSoon,      color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', path: '/equipment' },
+          { label: 'Needs Maintenance',   val: needsMaintenance,  color: '#F97316', bg: 'rgba(249,115,22,0.1)', path: '/equipment' },
+          { label: 'Unread Alerts',       val: unreadAlerts,      color: '#EF4444', bg: 'rgba(239,68,68,0.1)',  path: '/' },
+          { label: 'Compliance Score',    val: `${overallCompliance}%`, color: overallCompliance >= 70 ? '#22C55E' : '#F59E0B', bg: overallCompliance >= 70 ? 'rgba(34,197,94,0.1)' : 'rgba(245,158,11,0.1)', path: '/compliance' },
         ].map(s => (
-          <div key={s.label} onClick={() => nav(s.path)}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: s.bg, border: `1px solid ${s.color}30`, borderRadius: 'var(--radius-full)', cursor: 'pointer', transition: 'all 0.15s', minHeight: 40 }}
+          <div key={s.label} onClick={() => navigate(s.path)}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: s.bg, border: `1px solid ${s.color}30`, borderRadius: 'var(--radius-full)', cursor: 'pointer', transition: 'all 0.15s' }}
             onMouseEnter={e => e.currentTarget.style.borderColor = s.color}
             onMouseLeave={e => e.currentTarget.style.borderColor = `${s.color}30`}>
-            <span style={{ fontSize: 18, fontWeight: 800, color: s.color }}>{s.val}</span>
+            <span style={{ fontSize: 17, fontWeight: 800, color: s.color }}>{s.val}</span>
             <span style={{ fontSize: 12, color: s.color, fontWeight: 600 }}>{s.label}</span>
-            <ArrowUpRight size={12} color={s.color} />
           </div>
         ))}
-      </div>
+      </motion.div>
 
-      {/* High Risk Buildings + Upcoming Audits */}
+      {/* ── Row: AI Risk Overview + Recent Alerts ── */}
       <div className="dashboard-grid-half">
-        <div className="card">
+        {/* AI Risk Overview */}
+        <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 }} className="card">
           <div className="card-header">
-            <SectionHeader title="High Risk Buildings" sub="Requires immediate attention" action="View All" onAction={() => nav('/buildings')} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="ai-pulse-dot" /> AI Risk Overview
+                </div>
+                <div className="card-subtitle">{topRiskBuilding?.building}</div>
+              </div>
+              <button className="btn btn-primary btn-sm" onClick={() => navigate('/ai-prediction')} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <BrainCircuit size={13} /> Predict
+              </button>
+            </div>
+          </div>
+          <div className="card-body">
+            <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
+              {/* Gauge */}
+              <div style={{ width: 110, height: 110, flexShrink: 0, position: 'relative' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadialBarChart cx="50%" cy="50%" innerRadius="65%" outerRadius="100%" startAngle={180} endAngle={-180} data={[{ value: 100, fill: 'var(--bg-elevated)' }, ...gaugeData]}>
+                    <RadialBar dataKey="value" cornerRadius={4} />
+                  </RadialBarChart>
+                </ResponsiveContainer>
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: riskColor(topRiskBuilding?.riskLevel), letterSpacing: '-1px' }}>{topRiskBuilding?.riskScore}</div>
+                  <div style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600 }}>RISK</div>
+                </div>
+              </div>
+              {/* Details */}
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                  <span className={`badge badge-${topRiskBuilding?.riskLevel?.toLowerCase()}`}>{topRiskBuilding?.riskLevel} Risk</span>
+                  <span className="badge badge-primary">{topRiskBuilding?.confidence}% confidence</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {topRiskBuilding?.features?.filter(f => f.direction === 'increases').slice(0, 3).map(f => (
+                    <div key={f.name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: riskColor(f.severity), flexShrink: 0 }} />
+                      <span style={{ fontSize: 12, color: 'var(--text-secondary)', flex: 1 }}>{f.name}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: riskColor(f.severity) }}>{f.impact}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Recent Alerts */}
+        <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 }} className="card">
+          <div className="card-header">
+            <SectionHeader title="Recent Alerts" sub={`${unreadAlerts} unread`} action="View All" onAction={() => navigate('/incidents')} />
           </div>
           <div className="card-body" style={{ paddingTop: 0 }}>
-            {buildings.filter(b => b.riskLevel !== 'Low').slice(0, 4).map(b => (
-              <div key={b.id} onClick={() => nav('/buildings')}
+            {alerts.slice(0, 5).map(alert => {
+              const dc = riskColor(alert.type);
+              return (
+                <div key={alert.id} style={{ display: 'flex', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--border-light)', alignItems: 'flex-start' }}>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: dc, marginTop: 5, flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)', display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{alert.building}</span>
+                      <span style={{ fontSize: 10, color: dc, fontWeight: 700, flexShrink: 0, marginLeft: 6 }}>{alert.type}</span>
+                    </div>
+                    <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 2, lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{alert.message}</div>
+                    <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 3 }}>{alert.time}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+      </div>
+
+      {/* ── Row: Recent Inspections + Compliance Overview ── */}
+      <div className="dashboard-grid-half">
+        {/* Recent Inspections */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="card">
+          <div className="card-header">
+            <SectionHeader title="Recent Inspections" sub="Latest inspection results" action="View All" onAction={() => navigate('/inspections')} />
+          </div>
+          <div className="card-body" style={{ paddingTop: 0 }}>
+            {inspections.slice(0, 4).map(ins => (
+              <div key={ins.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--border-light)', minHeight: 54 }}>
+                <div style={{ width: 38, height: 38, borderRadius: 10, background: ins.overallScore >= 80 ? 'rgba(34,197,94,0.12)' : ins.overallScore >= 60 ? 'rgba(245,158,11,0.12)' : 'rgba(239,68,68,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  {ins.overallScore >= 60 ? <CheckCircle2 size={17} color={ins.overallScore >= 80 ? '#22C55E' : '#F59E0B'} /> : <AlertTriangle size={17} color="#EF4444" />}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ins.building}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{ins.date} · {ins.inspector}</div>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: ins.overallScore >= 80 ? '#22C55E' : ins.overallScore >= 60 ? '#F59E0B' : '#EF4444' }}>{ins.overallScore}%</div>
+                  <span className={`badge ${ins.status === 'Completed' ? 'badge-success' : ins.status === 'Overdue Action' ? 'badge-danger' : 'badge-warning'}`} style={{ fontSize: 10 }}>{ins.status}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* Compliance Overview */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="card">
+          <div className="card-header">
+            <SectionHeader title="Compliance Overview" sub="6-month trend" action="Details" onAction={() => navigate('/compliance')} />
+          </div>
+          <div className="card-body" style={{ paddingTop: 0 }}>
+            {/* Overall score */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border-light)', marginBottom: 12 }}>
+              <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Overall Compliance</span>
+              <span style={{ fontSize: 22, fontWeight: 900, color: overallCompliance >= 70 ? '#22C55E' : '#F59E0B' }}>{overallCompliance}%</span>
+            </div>
+            {/* Mini trend chart */}
+            <div style={{ height: 100 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={complianceTrend} margin={{ top: 2, right: 2, bottom: 2, left: -30 }}>
+                  <defs>
+                    <linearGradient id="cgrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#2563EB" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
+                  <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
+                  <YAxis domain={[40, 100]} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
+                  <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11 }} />
+                  <Area type="monotone" dataKey="score" stroke="#2563EB" strokeWidth={2} fill="url(#cgrad)" name="Score %" />
+                  <Area type="monotone" dataKey="target" stroke="#F59E0B" strokeWidth={1.5} strokeDasharray="4 3" fill="none" name="Target" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8, gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-muted)' }}>
+                <div style={{ width: 10, height: 2, background: '#2563EB', borderRadius: 2 }} /> Score
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-muted)' }}>
+                <div style={{ width: 10, height: 2, background: '#F59E0B', borderRadius: 2, borderTop: '1px dashed' }} /> Target (80%)
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* ── Row: High Risk Buildings + Recent Incidents ── */}
+      <div className="dashboard-grid-half">
+        {/* High Risk Buildings */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="card">
+          <div className="card-header">
+            <SectionHeader title="High Risk Buildings" sub="Requires immediate attention" action="View All" onAction={() => navigate('/buildings')} />
+          </div>
+          <div className="card-body" style={{ paddingTop: 0 }}>
+            {buildings.filter(b => b.riskLevel === 'Critical' || b.riskLevel === 'High').map(b => (
+              <div key={b.id} onClick={() => navigate('/buildings')}
                 style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--border-light)', cursor: 'pointer', transition: 'padding-left 0.15s', minHeight: 56 }}
                 onMouseEnter={e => e.currentTarget.style.paddingLeft = '4px'}
                 onMouseLeave={e => e.currentTarget.style.paddingLeft = '0'}>
@@ -171,427 +354,44 @@ function SuperAdminDash({ nav }) {
                   <Building2 size={18} color={riskColor(b.riskLevel)} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</div>
-                  <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 1 }}>{b.district} · {b.type}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 1 }}>{b.type} · {b.district}</div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: riskColor(b.riskLevel) }}>{b.complianceScore}%</div>
-                  <span style={{ fontSize: 10, background: riskBg(b.riskLevel), color: riskColor(b.riskLevel), padding: '1px 6px', borderRadius: 20, fontWeight: 700 }}>{b.riskLevel}</span>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: riskColor(b.riskLevel) }}>{b.riskScore}</div>
+                  <span className={`badge badge-${b.riskLevel.toLowerCase()}`} style={{ fontSize: 10 }}>{b.riskLevel}</span>
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </motion.div>
 
-        <div className="card">
+        {/* Recent Incidents */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }} className="card">
           <div className="card-header">
-            <SectionHeader title="Upcoming Audits" action="View All" onAction={() => nav('/audits')} />
+            <SectionHeader title="Recent Incidents" sub="Fire events & safety alerts" action="View All" onAction={() => navigate('/incidents')} />
           </div>
           <div className="card-body" style={{ paddingTop: 0 }}>
-            {upcomingAudits.slice(0, 4).map(a => (
-              <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--border-light)', minHeight: 52 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: a.priority === 'Critical' ? '#FEF2F2' : a.priority === 'High' ? '#FFF7ED' : '#FFFBEB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Calendar size={16} color={a.priority === 'Critical' ? '#EF4444' : a.priority === 'High' ? '#F97316' : '#F59E0B'} />
+            {incidents.map(inc => (
+              <div key={inc.id} onClick={() => navigate('/incidents')}
+                style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--border-light)', cursor: 'pointer', transition: 'opacity 0.15s' }}
+                onMouseEnter={e => e.currentTarget.style.opacity = '0.8'}
+                onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+                <div style={{ width: 38, height: 38, borderRadius: 10, background: riskBg(inc.severity), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Flame size={16} color={riskColor(inc.severity)} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.building}</div>
-                  <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{a.date} · {a.auditor}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inc.building}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inc.cause}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{inc.date} · Response: {inc.responseTime}</div>
                 </div>
-                <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: a.priority === 'Critical' ? '#FEF2F2' : '#FFF7ED', color: a.priority === 'Critical' ? '#EF4444' : '#F97316', flexShrink: 0 }}>{a.priority}</span>
+                <span className={`badge badge-${inc.severity.toLowerCase()}`} style={{ fontSize: 10, flexShrink: 0, alignSelf: 'flex-start', marginTop: 2 }}>{inc.severity}</span>
               </div>
             ))}
           </div>
-        </div>
+        </motion.div>
       </div>
 
-      {/* Progressive Disclosure — Analytics */}
-      <div style={{ textAlign: 'center' }}>
-        <button
-          className="btn btn-secondary"
-          onClick={() => setShowAnalytics(v => !v)}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 44 }}>
-          {showAnalytics ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          {showAnalytics ? 'Hide Analytics' : 'View Analytics'}
-        </button>
-      </div>
-
-      {showAnalytics && (
-        <div className="animate-up" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Map + Compliance Chart */}
-          <div className="dashboard-grid-map">
-            <div className="card">
-              <div className="card-header"><div><div className="card-title">🗺️ Tamil Nadu Risk Map</div><div className="card-subtitle">District-wise compliance overview</div></div></div>
-              <div className="card-body"><DistrictRiskMap scoped={buildings} onDistrictClick={(d) => nav(`/buildings?district=${d}`)} /></div>
-            </div>
-            <div className="card">
-              <div className="card-header"><div className="card-title">📊 Compliance Trend</div></div>
-              <div className="card-body" style={{ height: 230 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={complianceTrend.slice(-6)} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
-                    <defs>
-                      <linearGradient id="cg1" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#1F6F50" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#1F6F50" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-                    <YAxis domain={[60, 100]} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-                    <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
-                    <Area type="monotone" dataKey="score" stroke="var(--color-primary)" strokeWidth={2} fill="url(#cg1)" name="Compliance %" />
-                    <Area type="monotone" dataKey="target" stroke="#F59E0B" strokeWidth={1.5} strokeDasharray="4 4" fill="none" name="Target" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
-}
-
-// ── Role: SUPPLIER ────────────────────────────────────────────────────────────
-function SupplierDash({ nav, user }) {
-  const sup        = suppliers.find(s => s.id === user.supplierId) || suppliers[0];
-  const analytics  = supplierAnalytics[sup?.id] || supplierAnalytics['SUP-001'];
-  const myContracts = contracts.filter(c => c.supplierId === sup?.id);
-  const activeC    = myContracts.filter(c => c.status === 'Active').length;
-  const expiringC  = myContracts.filter(c => c.status === 'Expiring').length;
-  const myBuildings = buildings.filter(b => b.supplierId === sup?.id);
-  const avgCompliance = myBuildings.length ? Math.round(myBuildings.reduce((s, b) => s + b.complianceScore, 0) / myBuildings.length) : 0;
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-      <div className="animate-up" style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-        <div style={{ width: 56, height: 56, borderRadius: 14, background: '#F3E8FF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>🏭</div>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>{sup?.name}</h1>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Supplier Dashboard · {sup?.districts?.join(', ')}</p>
-        </div>
-      </div>
-
-      <div className="grid grid-4 grid-2-mobile">
-        <KpiCard label="Buildings Covered"     value={sup?.buildingsCovered || 0}    icon={Building2}     iconBg="#DFF3E8" iconColor="#1F6F50" accentColor="#1F6F50" onClick={() => nav('/buildings')} />
-        <KpiCard label="Extinguishers Supplied" value={sup?.extinguishersSupplied || 0} icon={Flame}      iconBg="#FEF3C7" iconColor="#B45309" accentColor="#F59E0B" onClick={() => nav('/extinguishers')} />
-        <KpiCard label="Active Contracts"      value={activeC}                        icon={FileText}      iconBg="#E0E7FF" iconColor="#4338CA" accentColor="#4338CA" onClick={() => nav('/contracts')} />
-        <KpiCard label="Expiring Contracts"    value={expiringC}                      icon={AlertTriangle} iconBg="#FEF3C7" iconColor="#B45309" accentColor="#F59E0B" onClick={() => nav('/contracts')} />
-      </div>
-
-      {/* Performance Score + Safety Status */}
-      <div className="card animate-up stagger-2">
-        <div className="card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div className="card-title">Performance Score</div>
-            <div className="card-subtitle">Safety & compliance rating</div>
-          </div>
-          <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--color-primary)' }}>{sup?.performanceScore}%</span>
-        </div>
-        <div className="card-body">
-          <div className="progress"><div className="progress-fill success" style={{ width: `${sup?.performanceScore}%` }} /></div>
-          <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {sup?.certifications?.map(c => (
-              <span key={c} style={{ fontSize: 11.5, background: 'var(--color-primary-ultra)', color: 'var(--color-primary)', padding: '3px 10px', borderRadius: 20, fontWeight: 600 }}>{c}</span>
-            ))}
-          </div>
-          <div style={{ marginTop: 16, padding: '12px 16px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Average building compliance</span>
-            <span style={{ fontSize: 16, fontWeight: 800, color: avgCompliance >= 80 ? 'var(--status-success)' : avgCompliance >= 60 ? '#F59E0B' : 'var(--status-danger)' }}>{avgCompliance}%</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="dashboard-grid-half">
-        <div className="card">
-          <div className="card-header"><div className="card-title">📍 District-wise Supply</div></div>
-          <div className="card-body" style={{ height: 250 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={analytics.districtWise} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                <XAxis dataKey="district" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-                <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-                <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
-                <Bar dataKey="extinguishers" fill="var(--color-primary)" name="Extinguishers" radius={[4,4,0,0]} />
-                <Bar dataKey="buildings" fill="#3B82F6" name="Buildings" radius={[4,4,0,0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-        <div className="card">
-          <div className="card-header"><div className="card-title">📋 Contracts</div></div>
-          <div className="card-body" style={{ paddingTop: 0 }}>
-            {myContracts.slice(0, 5).map(c => (
-              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--border-light)', minHeight: 52 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.buildingName}</div>
-                  <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>Expires: {c.endDate}</div>
-                </div>
-                <span className={`badge ${c.status === 'Active' ? 'badge-success' : c.status === 'Expiring' ? 'badge-warning' : 'badge-danger'}`}>{c.status}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Role: BUILDING OWNER ──────────────────────────────────────────────────────
-function BuildingOwnerDash({ nav, user }) {
-  // Strict data scoping — only own building
-  const myBuilding = buildings.find(b => b.id === user.buildingId) || buildings.find(b => b.companyId === user.companyId) || buildings[0];
-  const myExts     = extinguishers.filter(e => e.buildingId === myBuilding?.id);
-  const myAudits   = audits.filter(a => a.buildingId === myBuilding?.id);
-  const myUpcoming = upcomingAudits.filter(a => a.buildingId === myBuilding?.id);
-  const myAlerts   = alerts.filter(a => a.building === myBuilding?.name);
-  const myContracts = contracts.filter(c => c.buildingId === myBuilding?.id);
-
-  const compScore  = myBuilding?.complianceScore || 0;
-  const scoreColor = compScore >= 80 ? 'var(--status-success)' : compScore >= 60 ? '#F59E0B' : 'var(--status-danger)';
-
-  // Contract value sum (business metric, appropriate for building owner)
-  const contractValue = myContracts.filter(c => c.status === 'Active').map(c => c.value).join(', ') || '—';
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-      {/* Building Header Card */}
-      <div className="card animate-up" style={{ background: 'linear-gradient(135deg, var(--color-primary) 0%, #156040 100%)', border: 'none' }}>
-        <div className="card-body" style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', fontWeight: 600, marginBottom: 4 }}>YOUR BUILDING</div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: 'white', letterSpacing: '-0.5px' }}>{myBuilding?.name}</div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <MapPin size={13} /> {myBuilding?.district}, {myBuilding?.state} · {myBuilding?.floors} Floors · {myBuilding?.type}
-            </div>
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 48, fontWeight: 900, color: 'white', lineHeight: 1 }}>{compScore}%</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>Compliance Score</div>
-            <div style={{ width: 120, margin: '8px auto 0', height: 6, background: 'rgba(255,255,255,0.2)', borderRadius: 20, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${compScore}%`, background: 'rgba(255,255,255,0.9)', borderRadius: 20, transition: 'width 0.8s' }} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* KPIs — own building only */}
-      <div className="grid grid-4 grid-2-mobile">
-        <KpiCard label="Total Extinguishers" value={myExts.length}                                    icon={Flame}         iconBg="#FEF3C7" iconColor="#B45309" accentColor="#F59E0B" onClick={() => nav('/extinguishers')} />
-        <KpiCard label="Expired Units"       value={myExts.filter(e => e.status === 'Expired').length} icon={AlertTriangle} iconBg="#FEF2F2" iconColor="#EF4444" accentColor="#EF4444" />
-        <KpiCard label="Upcoming Audits"     value={myUpcoming.length}                                icon={ClipboardCheck} iconBg="#E0E7FF" iconColor="#4338CA" accentColor="#4338CA" onClick={() => nav('/audits')} />
-        <KpiCard label="Active Alerts"       value={myAlerts.filter(a => !a.read).length}             icon={ShieldCheck}   iconBg="var(--color-primary-ultra)" iconColor="var(--color-primary)" />
-      </div>
-
-      {/* Business Metrics (Building Owner scope) */}
-      <div className="grid grid-3 grid-1-mobile">
-        <div className="card">
-          <div className="card-body">
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Contract Value</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>{myContracts.find(c => c.status === 'Active')?.value || '—'}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{myContracts.filter(c => c.status === 'Active').length} active contract(s)</div>
-          </div>
-        </div>
-        <div className="card">
-          <div className="card-body">
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Last Inspection</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>{myBuilding?.lastAudit || '—'}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Next: {myBuilding?.nextAudit || '—'}</div>
-          </div>
-        </div>
-        <div className="card">
-          <div className="card-body">
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Building Type</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>{myBuilding?.type || '—'}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{myBuilding?.floors} floors · {myBuilding?.area_sqft?.toLocaleString()} sq ft</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Safety Recommendations */}
-      <div className="card animate-up stagger-3">
-        <div className="card-header">
-          <div>
-            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="ai-pulse-dot" /> AI Safety Recommendations
-            </div>
-            <div className="card-subtitle">Based on your compliance data</div>
-          </div>
-          <button onClick={() => nav('/ai-assistant')} className="btn btn-primary btn-sm">Ask AI</button>
-        </div>
-        <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {myExts.filter(e => e.status !== 'Active').slice(0, 3).map(e => (
-            <div key={e.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: 12, background: 'var(--bg-subtle)', borderRadius: 'var(--radius-sm)' }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: e.status === 'Expired' ? '#EF4444' : '#F59E0B', marginTop: 6, flexShrink: 0 }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{e.status === 'Expired' ? '🚨' : '⚠️'} Extinguisher {e.id} — Floor {e.floor}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{e.status} · {e.type} · {e.location}</div>
-              </div>
-              <span className={`badge ${e.status === 'Expired' ? 'badge-danger' : 'badge-warning'}`}>{e.status}</span>
-            </div>
-          ))}
-          {myExts.filter(e => e.status !== 'Active').length === 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 16, background: 'var(--status-success-bg)', borderRadius: 'var(--radius-sm)' }}>
-              <CheckCircle2 size={20} color="var(--status-success)" />
-              <span style={{ fontSize: 13, color: 'var(--status-success-text)', fontWeight: 600 }}>All extinguishers are in good standing! ✅</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Audit History */}
-      <div className="card">
-        <div className="card-header"><SectionHeader title="Audit History" action="View All" onAction={() => nav('/audits')} /></div>
-        <div className="card-body" style={{ paddingTop: 0 }}>
-          {myAudits.length === 0 ? (
-            <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No audit records found for this building.</p>
-          ) : myAudits.slice(0, 3).map(a => (
-            <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--border-light)', minHeight: 52 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 8, background: a.status === 'Completed' ? '#F0FDF4' : '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {a.status === 'Completed' ? <CheckCircle2 size={16} color="#22C55E" /> : <Clock size={16} color="#EF4444" />}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{a.id} · {a.date}</div>
-                <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>Auditor: {a.auditor}</div>
-              </div>
-              <span style={{ fontSize: 16, fontWeight: 800, color: a.complianceScore >= 80 ? '#22C55E' : a.complianceScore >= 60 ? '#F59E0B' : '#EF4444' }}>{a.complianceScore}%</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Role: AUDITOR ─────────────────────────────────────────────────────────────
-function AuditorDash({ nav, user }) {
-  const myAudits   = audits.filter(a => a.auditorId === user.id);
-  const myUpcoming = upcomingAudits.filter(a => a.auditorId === user.id);
-  const completed  = myAudits.filter(a => a.status === 'Completed').length;
-  const actionReq  = myAudits.filter(a => a.status === 'Action Required' || a.status === 'Overdue').length;
-  const avgCompliance = myAudits.length ? Math.round(myAudits.reduce((s, a) => s + a.complianceScore, 0) / myAudits.length) : 0;
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-      <div className="animate-up">
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)' }}>Welcome, {user.name} 📋</h1>
-        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>Your assigned audits & compliance reports</p>
-      </div>
-
-      <div className="grid grid-4 grid-2-mobile">
-        <KpiCard label="Scheduled Audits"  value={myUpcoming.length}  icon={Calendar}      iconBg="#E0E7FF" iconColor="#4338CA" accentColor="#4338CA" onClick={() => nav('/audits')} />
-        <KpiCard label="Completed Audits"  value={completed}          icon={CheckCircle2}  iconBg="#F0FDF4" iconColor="#15803D" accentColor="#22C55E" />
-        <KpiCard label="Action Required"   value={actionReq}          icon={AlertTriangle} iconBg="#FEF2F2" iconColor="#EF4444" accentColor="#EF4444" />
-        <KpiCard label="Avg Compliance"    value={`${avgCompliance}%`} icon={ShieldCheck}  iconBg="var(--color-primary-ultra)" iconColor="var(--color-primary)" />
-      </div>
-
-      <div className="dashboard-grid-half">
-        <div className="card">
-          <div className="card-header"><SectionHeader title="Upcoming Audits" action="View All" onAction={() => nav('/audits')} /></div>
-          <div className="card-body" style={{ paddingTop: 0 }}>
-            {myUpcoming.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', fontSize: 13, padding: '8px 0' }}>No upcoming audits assigned.</p>
-            ) : myUpcoming.map(a => (
-              <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--border-light)', minHeight: 52 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.building}</div>
-                  <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{a.date}</div>
-                </div>
-                <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: a.priority === 'Critical' ? '#FEF2F2' : '#FFF7ED', color: a.priority === 'Critical' ? '#EF4444' : '#F97316', flexShrink: 0 }}>{a.priority}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="card">
-          <div className="card-header"><SectionHeader title="Audit Reports" action="View All" onAction={() => nav('/audits')} /></div>
-          <div className="card-body" style={{ paddingTop: 0 }}>
-            {myAudits.slice(0, 4).map(a => (
-              <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--border-light)', minHeight: 52 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.building}</div>
-                  <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{a.date} · <span className={`badge ${a.status === 'Completed' ? 'badge-success' : a.status === 'Overdue' ? 'badge-danger' : 'badge-warning'}`} style={{ fontSize: 10 }}>{a.status}</span></div>
-                </div>
-                <span style={{ fontSize: 15, fontWeight: 800, color: a.complianceScore >= 80 ? '#22C55E' : a.complianceScore >= 60 ? '#F59E0B' : '#EF4444' }}>{a.complianceScore}%</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Actions for Auditor */}
-      <div>
-        <SectionHeader title="Quick Actions" />
-        <div className="grid grid-3 grid-2-mobile">
-          {[
-            { label: 'Schedule Audit',  sub: 'Plan new audit',       icon: ClipboardCheck, path: '/audits',      color: '#4338CA', bg: '#E0E7FF' },
-            { label: 'View Reports',    sub: 'Compliance reports',   icon: FileText,       path: '/reports',     color: '#1F6F50', bg: '#DFF3E8' },
-            { label: 'AI Assistant',    sub: 'Ask about compliance', icon: BrainCircuit,   path: '/ai-assistant',color: '#7C3AED', bg: '#F3E8FF' },
-          ].map(a => (
-            <div key={a.path} className="quick-action" onClick={() => nav(a.path)}>
-              <div className="quick-action-icon" style={{ background: a.bg, color: a.color }}><a.icon size={22} /></div>
-              <div className="quick-action-label">{a.label}</div>
-              <div className="quick-action-sub">{a.sub}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── COMPANY ADMIN fallback ────────────────────────────────────────────────────
-function CompanyAdminDash({ nav, user }) {
-  const scoped = buildings.filter(b => b.companyId === user.companyId);
-  const scopedExts = extinguishers.filter(e => e.companyId === user.companyId);
-  const avgScore = scoped.length ? Math.round(scoped.reduce((s, b) => s + b.complianceScore, 0) / scoped.length) : 0;
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-      <div className="animate-up">
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)' }}>Welcome back, {user.name.split(' ')[0]} 👋</h1>
-        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>Managing {user.companyName} · {scoped.length} buildings</p>
-      </div>
-      <div className="grid grid-4 grid-2-mobile">
-        <KpiCard label="Buildings"       value={scoped.length}      icon={Building2}   iconBg="var(--color-primary-ultra)" iconColor="var(--color-primary)" onClick={() => nav('/buildings')} />
-        <KpiCard label="Extinguishers"   value={scopedExts.length}  icon={Flame}       iconBg="#FEF3C7" iconColor="#B45309" accentColor="#F59E0B" onClick={() => nav('/extinguishers')} />
-        <KpiCard label="Avg Compliance"  value={`${avgScore}%`}     icon={ShieldCheck} iconBg="#F0FDF4" iconColor="#15803D" accentColor="#22C55E" />
-        <KpiCard label="Active Alerts"   value={alerts.filter(a => a.companyId === user.companyId && !a.read).length} icon={AlertTriangle} iconBg="#FEF2F2" iconColor="#EF4444" accentColor="#EF4444" />
-      </div>
-      <div className="dashboard-grid-map">
-        <div className="card">
-          <div className="card-header"><div><div className="card-title">🗺️ Tamil Nadu Risk Map</div><div className="card-subtitle">Your buildings by district</div></div></div>
-          <div className="card-body"><DistrictRiskMap scoped={scoped} onDistrictClick={(d) => nav(`/buildings?district=${d}`)} /></div>
-        </div>
-        <div className="card">
-          <div className="card-header"><div className="card-title">📊 Compliance Trend</div></div>
-          <div className="card-body" style={{ height: 230 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={complianceTrend.slice(-6)}>
-                <defs><linearGradient id="cg3" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#1F6F50" stopOpacity={0.2} /><stop offset="95%" stopColor="#1F6F50" stopOpacity={0} /></linearGradient></defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-                <YAxis domain={[60, 100]} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-                <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
-                <Area type="monotone" dataKey="score" stroke="var(--color-primary)" strokeWidth={2} fill="url(#cg3)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── MAIN EXPORT ───────────────────────────────────────────────────────────────
-export default function Dashboard() {
-  const { user, isSuperAdmin, isSupplier, isBuildingOwner, isAuditor, isCompanyAdmin } = useAuth();
-  const navigate = useNavigate();
-
-  if (!user) return null;
-
-  if (isSuperAdmin)    return <SuperAdminDash    nav={navigate} user={user} />;
-  if (isSupplier)      return <SupplierDash       nav={navigate} user={user} />;
-  if (isBuildingOwner) return <BuildingOwnerDash  nav={navigate} user={user} />;
-  if (isAuditor)       return <AuditorDash        nav={navigate} user={user} />;
-  if (isCompanyAdmin)  return <CompanyAdminDash   nav={navigate} user={user} />;
-  return <SuperAdminDash nav={navigate} user={user} />;
 }

@@ -1,756 +1,361 @@
 import React, { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Search, Building2, MapPin, Layers, Eye, ChevronUp, ChevronDown,
-  Plus, Pencil, Trash2, AlertTriangle, AlertCircle, Flame,
-  ChevronRight, Map
+  Building2, MapPin, Users, Wrench, ClipboardList, BrainCircuit,
+  ShieldCheck, AlertTriangle, X, ChevronRight, Search, Filter, Flame
 } from 'lucide-react';
-import PageHeader from '../components/ui/PageHeader';
-import { buildings as initialBuildings, tamilNaduHierarchy } from '../data/mockData';
-import { useAuth } from '../context/AuthContext';
+import { buildings, equipment, inspections, incidents, aiPredictions } from '../data/mockData';
 
-// ─── Sub Components ───────────────────────────────────────────
-const RiskBadge = ({ level }) => {
-  const configs = {
-    Low: { cls: 'badge-success' },
-    Medium: { cls: 'badge-warning' },
-    High: { cls: '', style: { background: '#FFF3ED', color: '#C2410C' } },
-    Critical: { cls: 'badge-danger' },
-  };
-  const cfg = configs[level] || {};
-  return <span className={`badge ${cfg.cls || ''}`} style={cfg.style}>{level}</span>;
-};
+const riskColor = l => ({ Critical: '#EF4444', High: '#F97316', Medium: '#F59E0B', Low: '#22C55E' }[l] || '#64748B');
+const riskBg    = l => ({ Critical: 'rgba(239,68,68,0.12)', High: 'rgba(249,115,22,0.12)', Medium: 'rgba(245,158,11,0.12)', Low: 'rgba(34,197,94,0.12)' }[l] || 'var(--bg-elevated)');
 
-const ComplianceMeter = ({ score }) => {
-  const color = score >= 80 ? 'var(--status-success)' : score >= 60 ? 'var(--status-warning)' : 'var(--status-danger)';
+const TYPE_ICONS = { Hospital: '🏥', School: '🏫', Office: '🏢', Warehouse: '🏭', Factory: '⚙️', Mall: '🛍️' };
+const TYPES = ['All', 'Hospital', 'School', 'Office', 'Warehouse', 'Factory', 'Mall'];
+
+// ── Building Detail Modal ─────────────────────────────────────
+function BuildingDetailModal({ building, onClose }) {
+  const [activeTab, setActiveTab] = useState('overview');
+  const bldEquipment   = equipment.filter(e => e.buildingId === building.id);
+  const bldInspections = inspections.filter(i => i.buildingId === building.id);
+  const bldIncidents   = incidents.filter(i => i.buildingId === building.id);
+  const bldAI          = aiPredictions.find(a => a.buildingId === building.id);
+
+  const expiredEq = bldEquipment.filter(e => e.status === 'Expired').length;
+
+  const tabs = ['overview', 'equipment', 'inspections', 'incidents', 'ai'];
+  const tabLabels = { overview: 'Overview', equipment: 'Equipment', inspections: 'Inspections', incidents: 'Incidents', ai: 'AI Prediction' };
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <div className="progress-bar" style={{ width: 80 }}>
-        <div style={{ height: '100%', width: `${score}%`, background: color, borderRadius: 9999, transition: 'width 0.8s ease' }} />
-      </div>
-      <span style={{ fontSize: 12.5, fontWeight: 700, color, minWidth: 32 }}>{score}%</span>
+    <div className="modal-overlay" onClick={onClose}>
+      <motion.div
+        className="modal"
+        style={{ maxWidth: 740 }}
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        transition={{ duration: 0.2 }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="modal-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ fontSize: 28 }}>{TYPE_ICONS[building.type] || '🏢'}</div>
+            <div>
+              <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)' }}>{building.name}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                <MapPin size={11} /> {building.location}
+                <span>·</span>
+                <span className={`badge badge-${building.riskLevel.toLowerCase()}`}>{building.riskLevel} Risk</span>
+              </div>
+            </div>
+          </div>
+          <button onClick={onClose} className="btn btn-ghost btn-icon"><X size={18} /></button>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ padding: '0 24px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', gap: 0 }}>
+            {tabs.map(tab => (
+              <button key={tab}
+                onClick={() => setActiveTab(tab)}
+                style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, background: 'transparent', border: 'none', borderBottom: `2px solid ${activeTab === tab ? 'var(--color-primary)' : 'transparent'}`, color: activeTab === tab ? '#60A5FA' : 'var(--text-muted)', cursor: 'pointer', fontFamily: 'var(--font)', transition: 'all 0.15s', marginBottom: -1 }}>
+                {tabLabels[tab]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="modal-body" style={{ maxHeight: '65vh', overflowY: 'auto' }}>
+          {/* Overview Tab */}
+          {activeTab === 'overview' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div className="grid grid-3" style={{ gap: 12 }}>
+                {[
+                  { label: 'Type', value: building.type },
+                  { label: 'Floors', value: `${building.floors} floors` },
+                  { label: 'Area', value: `${building.area_sqft?.toLocaleString()} sq ft` },
+                  { label: 'Occupancy', value: `${building.occupancy} persons` },
+                  { label: 'Year Built', value: building.yearBuilt },
+                  { label: 'Contact', value: building.contactPerson },
+                ].map(item => (
+                  <div key={item.label} style={{ padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{item.label}</div>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-primary)' }}>{item.value}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-3" style={{ gap: 12 }}>
+                <div style={{ padding: '14px', background: riskBg(building.riskLevel), border: `1px solid ${riskColor(building.riskLevel)}30`, borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 28, fontWeight: 900, color: riskColor(building.riskLevel) }}>{building.riskScore}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Risk Score</div>
+                </div>
+                <div style={{ padding: '14px', background: building.complianceScore >= 70 ? 'rgba(34,197,94,0.1)' : 'rgba(245,158,11,0.1)', border: `1px solid ${building.complianceScore >= 70 ? '#22C55E' : '#F59E0B'}30`, borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 28, fontWeight: 900, color: building.complianceScore >= 70 ? '#22C55E' : '#F59E0B' }}>{building.complianceScore}%</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Compliance</div>
+                </div>
+                <div style={{ padding: '14px', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--text-primary)' }}>{building.alerts}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Active Alerts</div>
+                </div>
+              </div>
+              <div style={{ padding: '14px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+                <div><div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Last Inspection</div><div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)' }}>{building.lastInspection}</div></div>
+                <div><div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Next Inspection</div><div style={{ fontSize: 13.5, fontWeight: 600, color: '#F59E0B' }}>{building.nextInspection}</div></div>
+                <div><div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Equipment</div><div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)' }}>{building.equipmentCount} items ({expiredEq} expired)</div></div>
+              </div>
+            </div>
+          )}
+
+          {/* Equipment Tab */}
+          {activeTab === 'equipment' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {bldEquipment.length === 0 ? <div className="empty-state"><div className="empty-state-title">No equipment found</div></div> :
+                bldEquipment.map(eq => {
+                  const sc = { Active: '#22C55E', Expired: '#EF4444', 'Expiring Soon': '#F59E0B', 'Needs Maintenance': '#F97316' }[eq.status] || '#64748B';
+                  return (
+                    <div key={eq.id} style={{ display: 'flex', gap: 12, padding: '12px 14px', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', alignItems: 'center' }}>
+                      <Wrench size={16} color={sc} style={{ flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{eq.name}</div>
+                        <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{eq.type} · {eq.location}</div>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <span className={`badge ${eq.status === 'Active' ? 'badge-success' : eq.status === 'Expired' ? 'badge-danger' : 'badge-warning'}`} style={{ fontSize: 10 }}>{eq.status}</span>
+                        <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 3 }}>Expires: {eq.expiryDate}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+
+          {/* Inspections Tab */}
+          {activeTab === 'inspections' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {bldInspections.length === 0 ? <div className="empty-state"><div className="empty-state-title">No inspections found</div></div> :
+                bldInspections.map(ins => (
+                  <div key={ins.id} style={{ padding: '14px', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{ins.id}</div>
+                        <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{ins.date} · {ins.inspector}</div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: ins.overallScore >= 80 ? '#22C55E' : ins.overallScore >= 60 ? '#F59E0B' : '#EF4444' }}>{ins.overallScore}%</div>
+                        <span className={`badge ${ins.status === 'Completed' ? 'badge-success' : ins.status === 'Overdue Action' ? 'badge-danger' : 'badge-warning'}`} style={{ fontSize: 10 }}>{ins.status}</span>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, fontStyle: 'italic', borderLeft: '3px solid var(--border)', paddingLeft: 10 }}>{ins.remarks}</div>
+                  </div>
+                ))}
+            </div>
+          )}
+
+          {/* Incidents Tab */}
+          {activeTab === 'incidents' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {bldIncidents.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-state-icon">✅</div>
+                  <div className="empty-state-title">No incidents recorded</div>
+                  <div className="empty-state-sub">This building has a clean incident history.</div>
+                </div>
+              ) : bldIncidents.map(inc => (
+                <div key={inc.id} style={{ padding: '14px', background: 'var(--bg-elevated)', border: `1px solid ${riskColor(inc.severity)}25`, borderRadius: 'var(--radius-md)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{inc.type} — {inc.date}</div>
+                    <span className={`badge badge-${inc.severity.toLowerCase()}`} style={{ fontSize: 10 }}>{inc.severity}</span>
+                  </div>
+                  <div style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>{inc.cause}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 4 }}>Response: {inc.responseTime} · Damage: {inc.propertyDamage}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* AI Tab */}
+          {activeTab === 'ai' && bldAI && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'flex', gap: 12, padding: '16px', background: riskBg(bldAI.riskLevel), border: `1px solid ${riskColor(bldAI.riskLevel)}30`, borderRadius: 'var(--radius-md)', alignItems: 'center' }}>
+                <BrainCircuit size={24} color={riskColor(bldAI.riskLevel)} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: riskColor(bldAI.riskLevel) }}>Risk Score: {bldAI.riskScore} / 100</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{bldAI.riskLevel} Risk · {bldAI.confidence}% confidence · {bldAI.modelVersion}</div>
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Risk Factors</div>
+                {bldAI.features.filter(f => f.direction === 'increases').map(f => (
+                  <div key={f.name} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', width: 180, flexShrink: 0 }}>{f.name}</div>
+                    <div style={{ flex: 1, height: 6, background: 'var(--bg-elevated)', borderRadius: 4, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${f.impact}%`, background: riskColor(f.severity), borderRadius: 4, transition: 'width 1s' }} />
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: riskColor(f.severity), width: 36, textAlign: 'right' }}>{f.impact}%</div>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Recommendations</div>
+                {bldAI.recommendations.slice(0, 3).map((r, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 10, padding: '10px 12px', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', marginBottom: 6 }}>
+                    <span className={`badge ${r.priority === 'Critical' ? 'badge-danger' : r.priority === 'High' ? 'badge-high' : 'badge-warning'}`} style={{ fontSize: 10, flexShrink: 0 }}>{r.priority}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12.5, color: 'var(--text-primary)', fontWeight: 500 }}>{r.action}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>By {r.deadline} · {r.estimatedCost}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {activeTab === 'ai' && !bldAI && <div className="empty-state"><div className="empty-state-title">No AI prediction available</div></div>}
+        </div>
+      </motion.div>
     </div>
   );
-};
+}
 
-// ─── Breadcrumb ───────────────────────────────────────────────
-const Breadcrumb = ({ district, area }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-    <Map size={13} color="var(--text-muted)" />
-    <span style={{ color: 'var(--text-muted)' }}>Tamil Nadu</span>
-    {district && district !== 'All' && (
-      <>
-        <ChevronRight size={12} color="var(--text-muted)" />
-        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{district}</span>
-      </>
-    )}
-    {area && area !== 'All' && (
-      <>
-        <ChevronRight size={12} color="var(--text-muted)" />
-        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{area}</span>
-      </>
-    )}
-    {(!district || district === 'All') && (
-      <>
-        <ChevronRight size={12} color="var(--text-muted)" />
-        <span style={{ color: 'var(--text-muted)' }}>All Districts</span>
-      </>
-    )}
-  </div>
-);
-
-const EMPTY_FORM = {
-  name: '', district: 'Coimbatore', area: 'Peelamedu',
-  floors: '', extinguishers: '', riskLevel: 'Low'
-};
-
-// ─── Main Component ───────────────────────────────────────────
+// ── Buildings Page ────────────────────────────────────────────
 export default function Buildings() {
-  const { user, isSuperAdmin } = useAuth();
-  
-  const initialScopedBuildings = useMemo(() => {
-    return isSuperAdmin ? initialBuildings : initialBuildings.filter(b => b.companyId === user?.companyId);
-  }, [isSuperAdmin, user]);
-
-  const [buildings, setBuildings] = useState(initialScopedBuildings);
-
-  React.useEffect(() => {
-    setBuildings(initialScopedBuildings);
-  }, [initialScopedBuildings]);
-
-  const [search, setSearch] = useState('');
-  const [districtFilter, setDistrictFilter] = useState('All');
-  const [areaFilter, setAreaFilter] = useState('All');
-  const [riskFilter, setRiskFilter] = useState('All');
-  const [sortKey, setSortKey] = useState('name');
-  const [sortDir, setSortDir] = useState('asc');
-  const [selectedBuilding, setSelectedBuilding] = useState(null);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editBuilding, setEditBuilding] = useState(null);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [editForm, setEditForm] = useState(EMPTY_FORM);
-
-  // Derive available areas based on selected district
-  const availableAreas = useMemo(() => {
-    if (districtFilter === 'All') return [];
-    const dist = tamilNaduHierarchy.districts.find(d => d.name === districtFilter);
-    return dist ? dist.areas : [];
-  }, [districtFilter]);
-
-  // Areas for form (based on form's district)
-  const formAreas = useMemo(() => {
-    const dist = tamilNaduHierarchy.districts.find(d => d.name === form.district);
-    return dist ? dist.areas : [];
-  }, [form.district]);
-
-  const editFormAreas = useMemo(() => {
-    const dist = tamilNaduHierarchy.districts.find(d => d.name === editForm.district);
-    return dist ? dist.areas : [];
-  }, [editForm.district]);
+  const [search, setSearch]           = useState('');
+  const [typeFilter, setTypeFilter]   = useState('All');
+  const [riskFilter, setRiskFilter]   = useState('All');
+  const [selected, setSelected]       = useState(null);
 
   const filtered = useMemo(() => {
-    let data = [...buildings];
-    if (search) data = data.filter(b =>
-      b.name.toLowerCase().includes(search.toLowerCase()) ||
-      b.location.toLowerCase().includes(search.toLowerCase()) ||
-      b.district.toLowerCase().includes(search.toLowerCase()) ||
-      b.area.toLowerCase().includes(search.toLowerCase())
-    );
-    if (districtFilter !== 'All') data = data.filter(b => b.district === districtFilter);
-    if (areaFilter !== 'All') data = data.filter(b => b.area === areaFilter);
-    if (riskFilter !== 'All') data = data.filter(b => b.riskLevel === riskFilter);
-    data.sort((a, b) => {
-      let va = a[sortKey], vb = b[sortKey];
-      if (typeof va === 'string') va = va.toLowerCase(), vb = vb.toLowerCase();
-      return sortDir === 'asc' ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
+    return buildings.filter(b => {
+      const matchSearch = !search || b.name.toLowerCase().includes(search.toLowerCase()) || b.location.toLowerCase().includes(search.toLowerCase());
+      const matchType   = typeFilter === 'All' || b.type === typeFilter;
+      const matchRisk   = riskFilter === 'All' || b.riskLevel === riskFilter;
+      return matchSearch && matchType && matchRisk;
     });
-    return data;
-  }, [buildings, search, districtFilter, areaFilter, riskFilter, sortKey, sortDir]);
-
-  const handleSort = (key) => {
-    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortKey(key); setSortDir('asc'); }
-  };
-
-  const SortIcon = ({ col }) => {
-    if (sortKey !== col) return null;
-    return sortDir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />;
-  };
-
-  const totalExtinguishers = buildings.reduce((acc, b) => acc + b.extinguishers, 0);
-
-  const handleDistrictChange = (d) => {
-    setDistrictFilter(d);
-    setAreaFilter('All');
-  };
-
-  const handleAddBuilding = (e) => {
-    e.preventDefault();
-    const riskScore = form.riskLevel === 'Critical' ? 85 : form.riskLevel === 'High' ? 70 : form.riskLevel === 'Medium' ? 50 : 20;
-    const complianceScore = form.riskLevel === 'Critical' ? 45 : form.riskLevel === 'High' ? 60 : form.riskLevel === 'Medium' ? 75 : 90;
-    const newBuilding = {
-      id: `BLD-${String(buildings.length + 1).padStart(3, '0')}`,
-      name: form.name,
-      state: 'Tamil Nadu',
-      district: form.district,
-      area: form.area,
-      location: `${form.area}, ${form.district}`,
-      floors: parseInt(form.floors) || 1,
-      extinguishers: parseInt(form.extinguishers) || 0,
-      complianceScore,
-      riskScore,
-      riskLevel: form.riskLevel,
-      lastAudit: 'Not audited',
-      nextAudit: 'Schedule required',
-      alerts: 0,
-      companyId: user?.companyId,
-    };
-    setBuildings(prev => [...prev, newBuilding]);
-    setForm(EMPTY_FORM);
-    setIsAddModalOpen(false);
-  };
-
-  const handleDeleteBuilding = (bldg) => {
-    if (window.confirm(`Delete "${bldg.name}"? This cannot be undone.`)) {
-      setBuildings(prev => prev.filter(b => b.id !== bldg.id));
-      if (selectedBuilding?.id === bldg.id) setSelectedBuilding(null);
-    }
-  };
-
-  const openEdit = (bldg) => {
-    setEditBuilding(bldg);
-    setEditForm({
-      name: bldg.name,
-      district: bldg.district,
-      area: bldg.area,
-      floors: bldg.floors,
-      extinguishers: bldg.extinguishers,
-      riskLevel: bldg.riskLevel
-    });
-  };
-
-  const handleEditSave = (e) => {
-    e.preventDefault();
-    setBuildings(prev => prev.map(b => b.id === editBuilding.id
-      ? {
-          ...b,
-          name: editForm.name,
-          district: editForm.district,
-          area: editForm.area,
-          location: `${editForm.area}, ${editForm.district}`,
-          floors: parseInt(editForm.floors),
-          extinguishers: parseInt(editForm.extinguishers),
-          riskLevel: editForm.riskLevel
-        }
-      : b
-    ));
-    setEditBuilding(null);
-  };
-
-  const districts = tamilNaduHierarchy.districts;
+  }, [search, typeFilter, riskFilter]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-
-      {/* Summary Cards */}
-      <div className="grid grid-4" style={{ gap: 16 }}>
-        {[
-          { label: 'Total Buildings', value: buildings.length, color: '#3B82F6', icon: Building2 },
-          { label: 'Critical Risk', value: buildings.filter(b => b.riskLevel === 'Critical').length, color: '#EF4444', icon: AlertTriangle },
-          { label: 'High Risk', value: buildings.filter(b => b.riskLevel === 'High').length, color: '#F97316', icon: AlertCircle },
-          { label: 'Extinguishers', value: totalExtinguishers, color: '#22C55E', icon: Flame },
-        ].map((stat, i) => {
-          const Icon = stat.icon || Building2;
-          return (
-            <div key={i} className="kpi-card animate-up" style={{ animationDelay: `${(i + 1) * 0.05}s` }}>
-              <div className="kpi-icon" style={{ background: `${stat.color}15` }}>
-                <Icon size={20} color={stat.color} strokeWidth={2} />
-              </div>
-              <div className="kpi-label">{stat.label}</div>
-              <div className="kpi-value">{stat.value}</div>
-            </div>
-          );
-        })}
-      </div>
-
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Header */}
-      <PageHeader
-        title="Building Portfolio"
-        description={`${filtered.length} building${filtered.length !== 1 ? 's' : ''} shown`}
-        action={
-          <button className="btn btn-primary btn-sm" onClick={() => { setForm(EMPTY_FORM); setIsAddModalOpen(true); }}>
-            <Plus size={13} /> Add Building
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>Buildings Portfolio</h2>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 3 }}>{buildings.length} buildings across Tamil Nadu — click any building to view details</p>
+      </motion.div>
+
+      {/* Summary Strip */}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}
+        style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        {[
+          { label: 'Critical', count: buildings.filter(b => b.riskLevel === 'Critical').length, color: '#EF4444' },
+          { label: 'High Risk', count: buildings.filter(b => b.riskLevel === 'High').length, color: '#F97316' },
+          { label: 'Medium Risk', count: buildings.filter(b => b.riskLevel === 'Medium').length, color: '#F59E0B' },
+          { label: 'Low Risk', count: buildings.filter(b => b.riskLevel === 'Low').length, color: '#22C55E' },
+        ].map(s => (
+          <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: `${s.color}14`, border: `1px solid ${s.color}30`, borderRadius: 'var(--radius-full)', cursor: 'pointer' }}
+            onClick={() => setRiskFilter(s.label.replace(' Risk', ''))}>
+            <div style={{ width: 7, height: 7, borderRadius: '50%', background: s.color }} />
+            <span style={{ fontSize: 12, fontWeight: 600, color: s.color }}>{s.count} {s.label}</span>
+          </div>
+        ))}
+      </motion.div>
+
+      {/* Filters */}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}
+        style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="search-bar" style={{ flex: 1, minWidth: 220, maxWidth: 340 }}>
+          <Search size={15} color="var(--text-muted)" />
+          <input placeholder="Search buildings…" value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {TYPES.map(t => (
+            <button key={t} className={`filter-pill ${typeFilter === t ? 'active' : ''}`} onClick={() => setTypeFilter(t)}>
+              {t !== 'All' && TYPE_ICONS[t]} {t}
+            </button>
+          ))}
+        </div>
+        {riskFilter !== 'All' && (
+          <button className="btn btn-ghost btn-sm" onClick={() => setRiskFilter('All')}>
+            <X size={12} /> Clear Risk Filter
           </button>
-        }
-      />
+        )}
+      </motion.div>
 
-      {/* ── Tamil Nadu Hierarchy Filters ── */}
-      <div className="card" style={{ padding: '16px 20px' }}>
-        {/* Breadcrumb */}
-        <div style={{ marginBottom: 14 }}>
-          <Breadcrumb district={districtFilter} area={areaFilter} />
-        </div>
+      {/* Building Cards */}
+      <div className="grid grid-auto" style={{ gap: 16 }}>
+        <AnimatePresence>
+          {filtered.map((b, i) => (
+            <motion.div key={b.id}
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ delay: i * 0.04 }}
+              className="building-card"
+              onClick={() => setSelected(b)}>
 
-        {/* Filter Row */}
-        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              {/* Card Top */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <div style={{ fontSize: 28 }}>{TYPE_ICONS[b.type] || '🏢'}</div>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{b.name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11.5, color: 'var(--text-muted)', marginTop: 1 }}>
+                      <MapPin size={10} /> {b.location}
+                    </div>
+                  </div>
+                </div>
+                <ChevronRight size={16} color="var(--text-muted)" />
+              </div>
 
-          {/* Search */}
-          <div style={{ flex: '1 1 200px' }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 5 }}>Search Building</div>
-            <div className="input-wrap">
-              <Search size={14} className="input-icon" />
-              <input
-                className="input"
-                placeholder="Search by name, area, district..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
-            </div>
-          </div>
+              {/* Risk Bar */}
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Risk Score</span>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: riskColor(b.riskLevel) }}>{b.riskScore} / 100</span>
+                </div>
+                <div className="progress">
+                  <div className="progress-fill" style={{ width: `${b.riskScore}%`, background: riskColor(b.riskLevel) }} />
+                </div>
+              </div>
 
-          {/* District Filter */}
-          <div style={{ flex: '0 1 160px' }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 5 }}>
-              📍 District
-            </div>
-            <select
-              className="select"
-              value={districtFilter}
-              onChange={e => handleDistrictChange(e.target.value)}
-              style={{ width: '100%' }}
-            >
-              <option value="All">All Districts</option>
-              {districts.map(d => (
-                <option key={d.id} value={d.name}>
-                  {d.name} ({buildings.filter(b => b.district === d.name).length})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Area Filter */}
-          <div style={{ flex: '0 1 160px' }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 5 }}>
-              🏘 Area / Street
-            </div>
-            <select
-              className="select"
-              value={areaFilter}
-              onChange={e => setAreaFilter(e.target.value)}
-              disabled={districtFilter === 'All'}
-              style={{ width: '100%', opacity: districtFilter === 'All' ? 0.5 : 1 }}
-            >
-              <option value="All">All Areas</option>
-              {availableAreas.map(a => (
-                <option key={a} value={a}>
-                  {a} ({buildings.filter(b => b.area === a).length})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Risk Filter */}
-          <div style={{ flex: '0 1 140px' }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 5 }}>⚠ Risk Level</div>
-            <select
-              className="select"
-              value={riskFilter}
-              onChange={e => setRiskFilter(e.target.value)}
-              style={{ width: '100%' }}
-            >
-              <option value="All">All Levels</option>
-              <option value="Low">Low</option>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
-              <option value="Critical">Critical</option>
-            </select>
-          </div>
-
-          {/* Clear Filters */}
-          {(districtFilter !== 'All' || areaFilter !== 'All' || riskFilter !== 'All' || search) && (
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => { setDistrictFilter('All'); setAreaFilter('All'); setRiskFilter('All'); setSearch(''); }}
-              style={{ flexShrink: 0, alignSelf: 'flex-end' }}
-            >
-              Clear Filters
-            </button>
-          )}
-        </div>
-
-        {/* District Quick-select chips */}
-        <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', alignSelf: 'center' }}>Quick:</span>
-          {['All', ...districts.map(d => d.name)].map(d => (
-            <button
-              key={d}
-              onClick={() => handleDistrictChange(d)}
-              style={{
-                padding: '4px 12px', borderRadius: 99, fontSize: 11.5, fontWeight: 600,
-                border: `1.5px solid ${districtFilter === d ? 'var(--color-primary)' : 'var(--border)'}`,
-                background: districtFilter === d ? 'var(--color-primary)' : 'transparent',
-                color: districtFilter === d ? 'white' : 'var(--text-secondary)',
-                cursor: 'pointer', transition: 'all 0.15s',
-              }}
-            >
-              {d === 'All' ? 'All Districts' : d}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Results Count */}
-      <div style={{ fontSize: 13, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-        <Building2 size={14} />
-        Showing <strong>{filtered.length}</strong> of {buildings.length} buildings
-        {districtFilter !== 'All' && <> in <strong>{districtFilter}</strong></>}
-        {areaFilter !== 'All' && <> · <strong>{areaFilter}</strong></>}
-      </div>
-
-      <div className="card" style={{ overflow: 'visible', background: 'transparent', boxShadow: 'none', border: 'none', padding: 0 }}>
-
-        {/* Desktop Table */}
-        <div className="table-container hidden-on-mobile">
-          <table className="data-table">
-            <thead>
-              <tr>
+              {/* Stats Row */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 14 }}>
                 {[
-                  { key: 'name', label: 'Building Name' },
-                  { key: 'district', label: 'District' },
-                  { key: 'area', label: 'Area' },
-                  { key: 'floors', label: 'Floors' },
-                  { key: 'extinguishers', label: 'Extinguishers' },
-                  { key: 'complianceScore', label: 'Compliance' },
-                  { key: 'riskScore', label: 'Risk Score' },
-                  { key: 'riskLevel', label: 'Risk Level' },
-                  { key: null, label: 'Actions' },
-                ].map(col => (
-                  <th key={col.key || 'action'} onClick={() => col.key && handleSort(col.key)} style={{ cursor: col.key ? 'pointer' : 'default' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      {col.label} <SortIcon col={col.key} />
-                    </div>
-                  </th>
+                  { label: 'Compliance', value: `${b.complianceScore}%`, color: b.complianceScore >= 70 ? '#22C55E' : b.complianceScore >= 50 ? '#F59E0B' : '#EF4444' },
+                  { label: 'Equipment', value: b.equipmentCount },
+                  { label: 'Alerts', value: b.alerts, color: b.alerts > 0 ? '#EF4444' : '#22C55E' },
+                ].map(s => (
+                  <div key={s.label} style={{ textAlign: 'center', padding: '8px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)' }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: s.color || 'var(--text-primary)' }}>{s.value}</div>
+                    <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 1 }}>{s.label}</div>
+                  </div>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(bldg => (
-                <tr key={bldg.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedBuilding(bldg)}>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{
-                        width: 36, height: 36, borderRadius: 'var(--radius-md)',
-                        background: bldg.riskLevel === 'Critical' ? '#FEF2F2' : bldg.riskLevel === 'High' ? '#FFF7ED' : 'var(--color-primary-ultra-light)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
-                      }}>
-                        <Building2 size={16} color={bldg.riskLevel === 'Critical' ? '#DC2626' : bldg.riskLevel === 'High' ? '#EA580C' : 'var(--color-primary)'} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{bldg.name}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{bldg.id}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12.5 }}>
-                      <MapPin size={11} color="var(--text-muted)" />
-                      <span style={{ fontWeight: 600 }}>{bldg.district}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{bldg.area}</span>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13 }}>
-                      <Layers size={13} color="var(--text-muted)" />
-                      {bldg.floors}
-                    </div>
-                  </td>
-                  <td><span style={{ fontSize: 13, fontWeight: 600 }}>{bldg.extinguishers}</span></td>
-                  <td><ComplianceMeter score={bldg.complianceScore} /></td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 40, height: 4, background: 'var(--border-light)', borderRadius: 9999, overflow: 'hidden' }}>
-                        <div style={{
-                          width: `${bldg.riskScore}%`, height: '100%', borderRadius: 9999,
-                          background: bldg.riskScore >= 75 ? 'var(--status-danger)' : bldg.riskScore >= 50 ? 'var(--status-warning)' : 'var(--status-success)'
-                        }} />
-                      </div>
-                      <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-primary)' }}>{bldg.riskScore}</span>
-                    </div>
-                  </td>
-                  <td><RiskBadge level={bldg.riskLevel} /></td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
-                      <button className="btn btn-ghost btn-sm btn-icon" title="View Details" onClick={() => setSelectedBuilding(bldg)}>
-                        <Eye size={14} />
-                      </button>
-                      <button className="btn btn-ghost btn-sm btn-icon" title="Edit Building" onClick={() => openEdit(bldg)}>
-                        <Pencil size={13} />
-                      </button>
-                      <button className="btn btn-ghost btn-sm btn-icon" title="Delete Building" style={{ color: '#EF4444' }} onClick={() => handleDeleteBuilding(bldg)}>
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: 13 }}>
-                    No buildings match your filters.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              </div>
 
-        {/* Mobile Cards */}
-        <div className="show-on-mobile">
-          {filtered.map(bldg => (
-            <div key={bldg.id} className="mobile-card" onClick={() => setSelectedBuilding(bldg)}>
-              <div className="mobile-card-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{
-                    width: 36, height: 36, borderRadius: 'var(--radius-md)',
-                    background: bldg.riskLevel === 'Critical' ? '#FEF2F2' : bldg.riskLevel === 'High' ? '#FFF7ED' : 'var(--color-primary-ultra-light)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
-                  }}>
-                    <Building2 size={16} color={bldg.riskLevel === 'Critical' ? '#DC2626' : bldg.riskLevel === 'High' ? '#EA580C' : 'var(--color-primary)'} />
-                  </div>
-                  <div>
-                    <div className="mobile-card-title">{bldg.name}</div>
-                    <div className="mobile-card-subtitle">{bldg.district} · {bldg.area}</div>
-                  </div>
+              {/* Footer */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <span className="badge badge-muted" style={{ fontSize: 10 }}>{b.type}</span>
+                  <span className={`badge badge-${b.riskLevel.toLowerCase()}`} style={{ fontSize: 10 }}>{b.riskLevel}</span>
                 </div>
-                <RiskBadge level={bldg.riskLevel} />
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  Next: <span style={{ color: '#F59E0B' }}>{b.nextInspection}</span>
+                </div>
               </div>
-              <div className="mobile-card-row">
-                <span style={{ color: 'var(--text-muted)' }}><MapPin size={12} style={{ display: 'inline', marginRight: 4 }} />{bldg.location}</span>
-                <span>{bldg.floors} Floors</span>
-              </div>
-              <div className="mobile-card-row">
-                <span style={{ color: 'var(--text-muted)' }}>Compliance</span>
-                <ComplianceMeter score={bldg.complianceScore} />
-              </div>
-              <div className="mobile-card-actions">
-                <button className="btn btn-secondary btn-sm" style={{ flex: 1, justifyContent: 'center' }} onClick={e => { e.stopPropagation(); openEdit(bldg); }}>Edit</button>
-                <button className="btn btn-primary btn-sm" style={{ flex: 1, justifyContent: 'center' }} onClick={e => { e.stopPropagation(); setSelectedBuilding(bldg); }}>View Details</button>
-              </div>
-            </div>
+            </motion.div>
           ))}
-          {filtered.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: 13 }}>
-              No buildings match your filters.
-            </div>
-          )}
-        </div>
+        </AnimatePresence>
       </div>
 
-      {/* ── Building Detail Modal ── */}
-      {selectedBuilding && (
-        <>
-          <div style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 300,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 20, animation: 'fadeIn 0.2s ease'
-          }} onClick={() => setSelectedBuilding(null)}>
-            <div style={{
-              background: 'var(--bg-card)', borderRadius: 'var(--radius-xl)', width: '100%', maxWidth: 580,
-              boxShadow: 'var(--shadow-xl)', animation: 'fadeInUp 0.25s ease', overflow: 'hidden'
-            }} onClick={e => e.stopPropagation()}>
-
-              {/* Gradient Header */}
-              <div style={{
-                padding: '24px 28px',
-                background: selectedBuilding.riskLevel === 'Critical'
-                  ? 'linear-gradient(135deg, #DC2626, #EF4444)'
-                  : selectedBuilding.riskLevel === 'High'
-                    ? 'linear-gradient(135deg, #EA580C, #F97316)'
-                    : 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
-                color: 'white'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <div style={{ fontSize: 10, opacity: 0.7, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span>{selectedBuilding.id}</span>
-                      <span>·</span>
-                      <span>Tamil Nadu → {selectedBuilding.district} → {selectedBuilding.area}</span>
-                    </div>
-                    <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px' }}>{selectedBuilding.name}</div>
-                    <div style={{ fontSize: 13, opacity: 0.8, marginTop: 4 }}>
-                      📍 {selectedBuilding.location} · {selectedBuilding.floors} Floors
-                    </div>
-                  </div>
-                  <button onClick={() => setSelectedBuilding(null)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: 'white', cursor: 'pointer', fontSize: 12 }}>
-                    Close
-                  </button>
-                </div>
-
-                {/* KPI Row */}
-                <div style={{ display: 'flex', gap: 16, marginTop: 20 }}>
-                  {[
-                    { label: 'Compliance', value: `${selectedBuilding.complianceScore}%` },
-                    { label: 'Risk Score', value: `${selectedBuilding.riskScore}/100` },
-                    { label: 'Extinguishers', value: selectedBuilding.extinguishers },
-                    { label: 'Active Alerts', value: selectedBuilding.alerts },
-                  ].map((stat, i) => (
-                    <div key={i} style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 22, fontWeight: 800 }}>{stat.value}</div>
-                      <div style={{ fontSize: 10, opacity: 0.7 }}>{stat.label}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Detail Grid */}
-              <div style={{ padding: '24px 28px' }}>
-
-                {/* Location Hierarchy */}
-                <div style={{ background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 16 }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8, fontWeight: 600 }}>LOCATION HIERARCHY</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Tamil Nadu</span>
-                    <ChevronRight size={14} color="var(--text-muted)" />
-                    <span style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{selectedBuilding.district}</span>
-                    <ChevronRight size={14} color="var(--text-muted)" />
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedBuilding.area}</span>
-                    <ChevronRight size={14} color="var(--text-muted)" />
-                    <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{selectedBuilding.name}</span>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                  {[
-                    { label: 'Last Audit', value: selectedBuilding.lastAudit },
-                    { label: 'Next Audit', value: selectedBuilding.nextAudit },
-                    { label: 'Risk Level', value: selectedBuilding.riskLevel },
-                    { label: 'Status', value: selectedBuilding.complianceScore >= 80 ? 'Compliant' : 'Non-Compliant' },
-                  ].map((item, i) => (
-                    <div key={i} style={{ padding: '12px 16px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{item.label}</div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{item.value}</div>
-                    </div>
-                  ))}
-                </div>
-
-                <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-                  <button className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }}
-                    onClick={() => alert(`Generating full compliance report for ${selectedBuilding.name}...`)}>
-                    View Full Report
-                  </button>
-                  <button className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }}
-                    onClick={() => { setSelectedBuilding(null); alert(`Audit scheduling initiated for ${selectedBuilding.name}.`); }}>
-                    Schedule Audit
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* ── Add Building Modal ── */}
-      {isAddModalOpen && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 300,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: 20, animation: 'fadeIn 0.2s ease'
-        }} onClick={() => setIsAddModalOpen(false)}>
-          <div style={{
-            background: 'var(--bg-card)', borderRadius: 'var(--radius-xl)', width: '100%', maxWidth: 480,
-            boxShadow: 'var(--shadow-xl)', animation: 'fadeInUp 0.25s ease', overflow: 'hidden'
-          }} onClick={e => e.stopPropagation()}>
-            <div style={{ padding: '24px 28px', borderBottom: '1px solid var(--border-light)' }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>Add New Building</div>
-              <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Tamil Nadu · {form.district} · {form.area}</div>
-            </div>
-            <form onSubmit={handleAddBuilding} style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6 }}>Building Name *</label>
-                <input required className="input" placeholder="e.g. NGP Tech Park" style={{ width: '100%' }}
-                  value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-              </div>
-
-              {/* Location Hierarchy Selectors */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6 }}>District *</label>
-                  <select required className="select" style={{ width: '100%' }}
-                    value={form.district}
-                    onChange={e => setForm(f => ({ ...f, district: e.target.value, area: tamilNaduHierarchy.districts.find(d => d.name === e.target.value)?.areas[0] || '' }))}>
-                    {districts.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6 }}>Area / Street *</label>
-                  <select required className="select" style={{ width: '100%' }}
-                    value={form.area} onChange={e => setForm(f => ({ ...f, area: e.target.value }))}>
-                    {formAreas.map(a => <option key={a} value={a}>{a}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6 }}>Floors *</label>
-                  <input required type="number" min="1" className="input" placeholder="10" style={{ width: '100%' }}
-                    value={form.floors} onChange={e => setForm(f => ({ ...f, floors: e.target.value }))} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6 }}>Extinguishers *</label>
-                  <input required type="number" min="0" className="input" placeholder="42" style={{ width: '100%' }}
-                    value={form.extinguishers} onChange={e => setForm(f => ({ ...f, extinguishers: e.target.value }))} />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6 }}>Initial Risk Level</label>
-                <select className="select" style={{ width: '100%' }} value={form.riskLevel}
-                  onChange={e => setForm(f => ({ ...f, riskLevel: e.target.value }))}>
-                  <option value="Low">Low</option>
-                  <option value="Medium">Medium</option>
-                  <option value="High">High</option>
-                  <option value="Critical">Critical</option>
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-                <button type="button" className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setIsAddModalOpen(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }}>Save Building</button>
-              </div>
-            </form>
-          </div>
+      {filtered.length === 0 && (
+        <div className="empty-state">
+          <div className="empty-state-icon">🏢</div>
+          <div className="empty-state-title">No buildings found</div>
+          <div className="empty-state-sub">Try adjusting your search or filters</div>
         </div>
       )}
 
-      {/* ── Edit Building Modal ── */}
-      {editBuilding && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 300,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: 20, animation: 'fadeIn 0.2s ease'
-        }} onClick={() => setEditBuilding(null)}>
-          <div style={{
-            background: 'var(--bg-card)', borderRadius: 'var(--radius-xl)', width: '100%', maxWidth: 480,
-            boxShadow: 'var(--shadow-xl)', animation: 'fadeInUp 0.25s ease', overflow: 'hidden'
-          }} onClick={e => e.stopPropagation()}>
-            <div style={{ padding: '24px 28px', borderBottom: '1px solid var(--border-light)' }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>Edit Building</div>
-              <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{editBuilding.id} · Tamil Nadu</div>
-            </div>
-            <form onSubmit={handleEditSave} style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6 }}>Building Name *</label>
-                <input required className="input" style={{ width: '100%' }}
-                  value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6 }}>District *</label>
-                  <select required className="select" style={{ width: '100%' }} value={editForm.district}
-                    onChange={e => setEditForm(f => ({ ...f, district: e.target.value, area: tamilNaduHierarchy.districts.find(d => d.name === e.target.value)?.areas[0] || '' }))}>
-                    {districts.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6 }}>Area / Street *</label>
-                  <select required className="select" style={{ width: '100%' }} value={editForm.area}
-                    onChange={e => setEditForm(f => ({ ...f, area: e.target.value }))}>
-                    {editFormAreas.map(a => <option key={a} value={a}>{a}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6 }}>Floors *</label>
-                  <input required type="number" min="1" className="input" style={{ width: '100%' }}
-                    value={editForm.floors} onChange={e => setEditForm(f => ({ ...f, floors: e.target.value }))} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6 }}>Extinguishers *</label>
-                  <input required type="number" min="0" className="input" style={{ width: '100%' }}
-                    value={editForm.extinguishers} onChange={e => setEditForm(f => ({ ...f, extinguishers: e.target.value }))} />
-                </div>
-              </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6 }}>Risk Level</label>
-                <select className="select" style={{ width: '100%' }} value={editForm.riskLevel}
-                  onChange={e => setEditForm(f => ({ ...f, riskLevel: e.target.value }))}>
-                  <option value="Low">Low</option>
-                  <option value="Medium">Medium</option>
-                  <option value="High">High</option>
-                  <option value="Critical">Critical</option>
-                </select>
-              </div>
-              <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-                <button type="button" className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setEditBuilding(null)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }}>Save Changes</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Detail Modal */}
+      <AnimatePresence>
+        {selected && <BuildingDetailModal building={selected} onClose={() => setSelected(null)} />}
+      </AnimatePresence>
     </div>
   );
 }
